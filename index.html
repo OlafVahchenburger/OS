@@ -392,6 +392,21 @@ body { width: 100vw; height: 100vh; overflow: hidden; font-family: 'Segoe UI', s
 .sticky-note textarea { width: 100%; background: transparent; border: none; outline: none; resize: none; font-size: 13px; color: rgba(0,0,0,0.8); font-family: inherit; height: 90px; }
 .sticky-del { position: absolute; top: 8px; right: 8px; background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.4; }
 .sticky-del:hover { opacity: 0.8; }
+.shower-panel { flex-shrink: 0; border: 1px solid rgba(0,212,255,0.18); border-radius: 12px; background: rgba(0,212,255,0.04); padding: 10px 12px; }
+.shower-panel-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.shower-panel-title { font-size: 12px; font-weight: 600; color: var(--accent-cyan); letter-spacing: 1px; }
+.shower-panel-sub { font-size: 10px; color: var(--text-secondary); }
+.shower-chips-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+.shower-chips-scroll::-webkit-scrollbar { height: 3px; }
+.shower-chip {
+  flex-shrink: 0; padding: 5px 11px; border-radius: 20px; cursor: pointer; font-size: 11px;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+  color: #a0d8f0; white-space: nowrap; transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.shower-chip:hover { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.45); color: #fff; transform: translateY(-1px); }
+.shower-chip:active { transform: translateY(0); }
+@keyframes notepop { from{transform:scale(0.7);opacity:0} to{transform:scale(1);opacity:1} }
 
 /* Clock App */
 .clock-app { display: flex; flex-direction: column; align-items: center; height: 100%; padding: 20px; gap: 20px; overflow-y: auto; }
@@ -828,7 +843,7 @@ function startThoughtBubbles() {
     const thought = thoughts[Math.floor(Math.random() * thoughts.length)];
     const el = document.createElement('div');
     el.className = 'thought-bubble';
-    el.textContent = thought;
+    el.textContent = '🚿 ' + thought.split(' ').slice(1).join(' ');
     const desktop = document.getElementById('desktop');
     el.style.left = (100 + Math.random() * (desktop.offsetWidth - 400)) + 'px';
     el.style.top = (50 + Math.random() * (desktop.offsetHeight - 150)) + 'px';
@@ -836,7 +851,7 @@ function startThoughtBubbles() {
     setTimeout(() => el.remove(), 8000);
   }
   setTimeout(spawnBubble, 3000);
-  setInterval(spawnBubble, 12000);
+  setInterval(spawnBubble, 8000);
 }
 
 // ═══════════════════════════════════════════════════
@@ -1653,11 +1668,26 @@ function launchStickyNotes() {
       <textarea style="color:rgba(0,0,0,0.75)">${n.text}</textarea>
     </div>`).join('');
 
+  // Build shower thought chips from the global thoughts array
+  const showerChipsHtml = thoughts.map((t, i) => {
+    const text = t.split(' ').slice(1).join(' ');
+    const preview = text.length > 28 ? text.slice(0, 28) + '…' : text;
+    const escaped = text.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    return `<div class="shower-chip" onclick="addShowerNote('${id}','${escaped}')" title="${escaped}">🚿 ${preview}</div>`;
+  }).join('');
+
   const html = `
     <div class="sticky-notes-app" id="sna-${id}">
       <div class="sticky-toolbar">
         ${colBtns}
         <button class="sticky-add-btn" onclick="addNote('${id}')">+ Add Note</button>
+      </div>
+      <div class="shower-panel">
+        <div class="shower-panel-header">
+          <span class="shower-panel-title">💡 Shower Thoughts</span>
+          <span class="shower-panel-sub">click any to add as a note →</span>
+        </div>
+        <div class="shower-chips-scroll">${showerChipsHtml}</div>
       </div>
       <div class="sticky-grid" id="sg-${id}">${notesHtml}</div>
     </div>`;
@@ -1675,9 +1705,24 @@ function launchStickyNotes() {
     grid.appendChild(note);
     note.querySelector('textarea').focus();
   };
+  window['addShowerNote'] = (eid, text) => {
+    const i = noteCount++;
+    const grid = document.getElementById(`sg-${eid}`);
+    const colors = stickyColors;
+    const color = colors[i % colors.length];
+    const note = document.createElement('div');
+    note.className = 'sticky-note';
+    note.id = `sn-${i}`;
+    note.style.background = color;
+    note.style.animation = 'notepop 0.25s cubic-bezier(0.34,1.56,0.64,1)';
+    const decoded = text.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+    note.innerHTML = `<button class="sticky-del" onclick="delNote('${eid}',${i})">✕</button><textarea style="color:rgba(0,0,0,0.75)">🚿 ${decoded}</textarea>`;
+    grid.appendChild(note);
+    grid.scrollTop = grid.scrollHeight;
+  };
   window['delNote'] = (eid, i) => { const el=document.getElementById(`sn-${i}`); if(el) el.remove(); };
 
-  createWindow(id, 'Sticky Notes', '📌', html, { width: 500, height: 420 });
+  createWindow(id, 'Sticky Notes', '📌', html, { width: 560, height: 520 });
 }
 
 // ═══════════════════════════════════════════════════
