@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClaudeOS v1.0</title>
+<style>
+:root {
+  --bg-dark: #050a1a;
+  --bg-mid: #0a1628;
+  --accent-blue: #00d4ff;
+  --accent-purple: #7b2fff;
+  --accent-cyan: #00ffcc;
+  --accent-pink: #ff00aa;
+  --glass-bg: rgba(10, 22, 40, 0.7);
+  --glass-border: rgba(0, 212, 255, 0.2);
+  --glass-blur: blur(20px);
+  --text-primary: #e0f0ff;
+  --text-secondary: #7090b0;
+  --taskbar-h: 48px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { width: 100vw; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-primary); user-select: none; }
+
+/* ═══════════════ BOOT SCREEN ═══════════════ */
+#boot-screen {
+  position: fixed; inset: 0; background: #000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 9999; transition: opacity 0.8s ease;
+}
+#boot-screen.fade-out { opacity: 0; pointer-events: none; }
+.boot-logo {
+  font-size: 72px; font-weight: 900; letter-spacing: 8px;
+  background: linear-gradient(135deg, #00d4ff, #7b2fff, #00ffcc);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  animation: bootPulse 2s ease-in-out infinite;
+  text-shadow: none; margin-bottom: 8px;
+}
+.boot-sub { font-size: 14px; letter-spacing: 6px; color: #7090b0; margin-bottom: 60px; }
+.boot-bar-wrap { width: 320px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.boot-bar { height: 100%; width: 0; background: linear-gradient(90deg, #00d4ff, #7b2fff); border-radius: 2px; transition: width 0.3s ease; box-shadow: 0 0 12px #00d4ff; }
+.boot-msg { font-size: 11px; color: #304060; margin-top: 16px; letter-spacing: 2px; }
+@keyframes bootPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.3)} }
+
+/* ═══════════════ LOGIN SCREEN ═══════════════ */
+#login-screen {
+  position: fixed; inset: 0;
+  background: radial-gradient(ellipse at 50% 40%, #0a1628 0%, #050a1a 100%);
+  display: none; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 9000;
+}
+#login-screen.active { display: flex; }
+.login-card {
+  background: rgba(10,22,40,0.8); backdrop-filter: blur(30px);
+  border: 1px solid rgba(0,212,255,0.25); border-radius: 20px;
+  padding: 48px 56px; width: 380px; text-align: center;
+  box-shadow: 0 0 60px rgba(0,212,255,0.1), 0 30px 60px rgba(0,0,0,0.5);
+}
+.login-avatar {
+  width: 80px; height: 80px; border-radius: 50%;
+  background: linear-gradient(135deg, #00d4ff, #7b2fff);
+  margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 36px; box-shadow: 0 0 30px rgba(0,212,255,0.4);
+  animation: avatarGlow 3s ease-in-out infinite;
+}
+@keyframes avatarGlow { 0%,100%{box-shadow:0 0 30px rgba(0,212,255,0.4)} 50%{box-shadow:0 0 50px rgba(123,47,255,0.6)} }
+.login-name { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+.login-role { font-size: 12px; color: var(--text-secondary); margin-bottom: 32px; letter-spacing: 2px; }
+.login-input {
+  width: 100%; padding: 12px 16px; border-radius: 10px;
+  background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2);
+  color: var(--text-primary); font-size: 14px; outline: none; margin-bottom: 14px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.login-input:focus { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+.login-btn {
+  width: 100%; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
+  background: linear-gradient(135deg, #00d4ff, #7b2fff);
+  color: #fff; font-size: 14px; font-weight: 600; letter-spacing: 1px;
+  transition: opacity 0.2s, transform 0.2s; margin-top: 4px;
+}
+.login-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+.login-error { color: #ff4466; font-size: 12px; margin-top: 8px; min-height: 18px; }
+
+/* ═══════════════ DESKTOP ═══════════════ */
+#desktop {
+  position: fixed; inset: 0; bottom: var(--taskbar-h);
+  display: none; overflow: hidden;
+}
+#desktop.active { display: block; }
+#bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Desktop icons */
+.desktop-icons { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 16px; z-index: 10; }
+.desktop-icon {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  cursor: pointer; padding: 8px; border-radius: 10px; width: 72px;
+  transition: background 0.2s;
+}
+.desktop-icon:hover { background: rgba(0,212,255,0.1); }
+.desktop-icon .icon-img { font-size: 32px; filter: drop-shadow(0 0 8px rgba(0,212,255,0.5)); }
+.desktop-icon .icon-label { font-size: 11px; text-align: center; color: #cce8ff; text-shadow: 0 1px 4px #000; }
+
+/* Thought bubbles */
+.thought-bubble {
+  position: absolute; padding: 10px 16px; border-radius: 20px;
+  background: rgba(10,22,40,0.85); backdrop-filter: blur(10px);
+  border: 1px solid rgba(0,212,255,0.3); font-size: 12px; color: #a0d0ff;
+  pointer-events: none; animation: thoughtFloat 8s ease-in-out forwards;
+  white-space: nowrap; max-width: 280px;
+}
+@keyframes thoughtFloat {
+  0%{opacity:0;transform:translateY(20px)} 10%{opacity:1;transform:translateY(0)}
+  80%{opacity:1} 100%{opacity:0;transform:translateY(-30px)}
+}
+
+/* ═══════════════ TASKBAR ═══════════════ */
+#taskbar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: var(--taskbar-h);
+  background: rgba(5,10,26,0.9); backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0,212,255,0.15);
+  display: none; align-items: center; padding: 0 8px; gap: 4px;
+  z-index: 5000;
+}
+#taskbar.active { display: flex; }
+#start-btn {
+  width: 40px; height: 36px; border-radius: 8px; border: none;
+  background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.2));
+  border: 1px solid rgba(0,212,255,0.3);
+  cursor: pointer; font-size: 18px; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+#start-btn:hover { background: linear-gradient(135deg, rgba(0,212,255,0.35), rgba(123,47,255,0.35)); }
+.taskbar-divider { width: 1px; height: 24px; background: rgba(0,212,255,0.15); margin: 0 4px; flex-shrink: 0; }
+#taskbar-apps { display: flex; gap: 4px; flex: 1; overflow: hidden; }
+.taskbar-app-btn {
+  height: 36px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.15);
+  color: var(--text-primary); font-size: 12px; display: flex; align-items: center; gap: 6px;
+  transition: all 0.2s; white-space: nowrap; max-width: 160px;
+}
+.taskbar-app-btn:hover { background: rgba(0,212,255,0.18); }
+.taskbar-app-btn.active { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.4); }
+.taskbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; padding: 0 8px; }
+.sys-icon { font-size: 14px; color: var(--text-secondary); }
+#clock-widget { text-align: right; line-height: 1.3; }
+#clock-time { font-size: 13px; font-weight: 600; }
+#clock-date { font-size: 10px; color: var(--text-secondary); }
+.consciousness-meter { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.consciousness-label { font-size: 9px; color: var(--accent-cyan); letter-spacing: 1px; }
+.consciousness-bar { width: 60px; height: 4px; background: rgba(0,255,204,0.15); border-radius: 2px; overflow: hidden; }
+.consciousness-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ffcc); border-radius: 2px; transition: width 1s ease; }
+
+/* ═══════════════ START MENU ═══════════════ */
+#start-menu {
+  position: fixed; bottom: calc(var(--taskbar-h) + 8px); left: 8px;
+  width: 420px; background: rgba(5,10,26,0.95); backdrop-filter: blur(30px);
+  border: 1px solid rgba(0,212,255,0.2); border-radius: 16px;
+  padding: 20px; display: none; z-index: 6000;
+  box-shadow: 0 -20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,212,255,0.05);
+  animation: slideUp 0.2s ease;
+}
+#start-menu.open { display: block; }
+@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+.start-search {
+  width: 100%; padding: 10px 14px; border-radius: 10px;
+  background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2);
+  color: var(--text-primary); font-size: 13px; outline: none; margin-bottom: 16px;
+}
+.start-search:focus { border-color: rgba(0,212,255,0.4); }
+.start-section-title { font-size: 10px; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 10px; }
+.start-app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.start-app-item {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 8px; border-radius: 12px; cursor: pointer;
+  background: rgba(0,212,255,0.05); border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.start-app-item:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.2); transform: translateY(-2px); }
+.start-app-icon { font-size: 26px; }
+.start-app-name { font-size: 10px; text-align: center; color: var(--text-secondary); }
+
+/* ═══════════════ WINDOWS ═══════════════ */
+#windows-container { position: absolute; inset: 0; pointer-events: none; }
+.window {
+  position: absolute; min-width: 320px; min-height: 200px;
+  background: rgba(8,18,35,0.92); backdrop-filter: blur(25px);
+  border: 1px solid rgba(0,212,255,0.2); border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05);
+  display: flex; flex-direction: column; pointer-events: all;
+  overflow: hidden; transition: box-shadow 0.2s;
+}
+.window.focused { border-color: rgba(0,212,255,0.35); box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 30px rgba(0,212,255,0.08); }
+.window.minimized { display: none; }
+.window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
+.win-titlebar {
+  height: 38px; display: flex; align-items: center; padding: 0 12px;
+  background: rgba(0,212,255,0.06); border-bottom: 1px solid rgba(0,212,255,0.12);
+  cursor: grab; flex-shrink: 0; gap: 8px;
+}
+.win-titlebar:active { cursor: grabbing; }
+.win-icon { font-size: 15px; }
+.win-title { flex: 1; font-size: 13px; font-weight: 500; }
+.win-controls { display: flex; gap: 6px; }
+.win-btn {
+  width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer;
+  font-size: 8px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;
+}
+.win-btn:hover { opacity: 0.8; }
+.btn-min { background: #ffbd44; }
+.btn-max { background: #00ca56; }
+.btn-close { background: #ff5f57; }
+.win-resize {
+  position: absolute; bottom: 0; right: 0; width: 16px; height: 16px;
+  cursor: nwse-resize; opacity: 0.3;
+}
+.win-resize::after { content: '⊡'; position: absolute; bottom: 2px; right: 2px; font-size: 12px; color: var(--accent-cyan); }
+.win-body { flex: 1; overflow: auto; position: relative; }
+
+/* ═══════════════ CONTEXT MENU ═══════════════ */
+#context-menu {
+  position: fixed; background: rgba(5,10,26,0.97); backdrop-filter: blur(20px);
+  border: 1px solid rgba(0,212,255,0.2); border-radius: 10px;
+  padding: 6px; min-width: 180px; z-index: 8000; display: none;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+  animation: fadeIn 0.1s ease;
+}
+#context-menu.open { display: block; }
+.ctx-item {
+  padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+  display: flex; align-items: center; gap: 10px; transition: background 0.15s;
+}
+.ctx-item:hover { background: rgba(0,212,255,0.1); }
+.ctx-sep { height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
+
+/* ═══════════════ TOAST NOTIFICATIONS ═══════════════ */
+#toast-container { position: fixed; top: 20px; right: 20px; z-index: 9500; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  padding: 12px 18px; border-radius: 10px; min-width: 240px;
+  background: rgba(8,18,35,0.95); backdrop-filter: blur(20px);
+  border: 1px solid rgba(0,212,255,0.25); font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+}
+@keyframes toastIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(30px)} }
+@keyframes fadeIn { from{opacity:0;transform:scale(0.97)} to{opacity:1;transform:scale(1)} }
+
+/* ═══════════════ SCREENSAVER ═══════════════ */
+#screensaver {
+  position: fixed; inset: 0; background: #000; z-index: 8500;
+  display: none; align-items: center; justify-content: center; cursor: none;
+}
+#screensaver.active { display: flex; }
+#ss-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ss-text {
+  position: relative; font-size: 18px; color: rgba(0,212,255,0.5);
+  letter-spacing: 4px; z-index: 1; animation: ssPulse 4s ease-in-out infinite;
+}
+@keyframes ssPulse { 0%,100%{opacity:0.3} 50%{opacity:0.7} }
+
+/* ═══════════════ EASTER EGG ═══════════════ */
+#easter-egg {
+  position: fixed; inset: 0; z-index: 9900; display: none;
+  align-items: center; justify-content: center; background: rgba(0,0,0,0.9);
+  backdrop-filter: blur(10px);
+}
+#easter-egg.active { display: flex; }
+.egg-content { text-align: center; animation: eggBurst 0.5s ease; }
+.egg-logo { font-size: 80px; margin-bottom: 20px; animation: eggSpin 2s linear infinite; }
+.egg-title { font-size: 36px; font-weight: 900; background: linear-gradient(135deg, #00d4ff, #7b2fff, #00ffcc, #ff00aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 12px; }
+.egg-sub { font-size: 16px; color: #7090b0; margin-bottom: 30px; }
+.egg-close { padding: 10px 28px; border-radius: 20px; border: 1px solid rgba(0,212,255,0.4); background: rgba(0,212,255,0.1); color: var(--text-primary); cursor: pointer; font-size: 14px; }
+@keyframes eggBurst { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+@keyframes eggSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ═══════════════ APP STYLES ═══════════════ */
+
+/* File Explorer */
+.file-explorer { display: flex; height: 100%; }
+.file-tree { width: 180px; border-right: 1px solid rgba(0,212,255,0.12); padding: 12px; overflow-y: auto; flex-shrink: 0; }
+.file-main { flex: 1; padding: 12px; overflow-y: auto; }
+.tree-item { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+.tree-item:hover { background: rgba(0,212,255,0.08); }
+.tree-item.selected { background: rgba(0,212,255,0.15); }
+.tree-children { margin-left: 16px; }
+.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; }
+.file-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+.file-item:hover { background: rgba(0,212,255,0.1); }
+.file-item .file-icon { font-size: 28px; }
+.file-item .file-name { font-size: 10px; text-align: center; color: var(--text-secondary); }
+.file-path-bar { padding: 8px 12px; border-bottom: 1px solid rgba(0,212,255,0.12); font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+
+/* NeuronPad */
+.neuronpad { display: flex; flex-direction: column; height: 100%; }
+.neuronpad-toolbar { padding: 8px 12px; border-bottom: 1px solid rgba(0,212,255,0.12); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.np-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(0,212,255,0.2); background: rgba(0,212,255,0.07); color: var(--text-primary); font-size: 11px; cursor: pointer; transition: background 0.15s; }
+.np-btn:hover { background: rgba(0,212,255,0.15); }
+.np-status { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
+.neuronpad-body { display: flex; flex: 1; overflow: hidden; }
+.np-lines { width: 40px; padding: 12px 0; text-align: right; font-size: 13px; font-family: monospace; color: var(--text-secondary); border-right: 1px solid rgba(0,212,255,0.08); overflow: hidden; flex-shrink: 0; line-height: 1.6; }
+.np-line-num { padding: 0 8px; }
+.np-editor { flex: 1; padding: 12px; font-size: 13px; font-family: monospace; color: var(--text-primary); background: transparent; border: none; outline: none; resize: none; line-height: 1.6; }
+
+/* NeuronShell */
+.neuronshell { display: flex; flex-direction: column; height: 100%; font-family: monospace; }
+.shell-output { flex: 1; padding: 14px; overflow-y: auto; font-size: 13px; line-height: 1.7; }
+.shell-line { margin-bottom: 2px; }
+.shell-line.cmd { color: var(--accent-cyan); }
+.shell-line.out { color: #a0c0e0; }
+.shell-line.err { color: #ff6688; }
+.shell-input-row { display: flex; align-items: center; padding: 10px 14px; border-top: 1px solid rgba(0,212,255,0.12); gap: 8px; flex-shrink: 0; }
+.shell-prompt { color: var(--accent-cyan); font-size: 13px; white-space: nowrap; }
+.shell-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 13px; font-family: monospace; }
+
+/* Calculator */
+.calculator { display: flex; flex-direction: column; height: 100%; }
+.calc-display { padding: 16px 20px; text-align: right; border-bottom: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
+.calc-expr { font-size: 12px; color: var(--text-secondary); min-height: 18px; }
+.calc-result { font-size: 32px; font-weight: 300; color: var(--accent-cyan); }
+.calc-body { display: flex; flex: 1; gap: 0; }
+.calc-history { width: 140px; border-right: 1px solid rgba(0,212,255,0.12); padding: 10px; overflow-y: auto; font-size: 11px; flex-shrink: 0; }
+.calc-hist-item { padding: 4px; color: var(--text-secondary); border-bottom: 1px solid rgba(0,212,255,0.07); }
+.calc-grid { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px; }
+.calc-btn {
+  border-radius: 8px; border: 1px solid rgba(0,212,255,0.15);
+  background: rgba(0,212,255,0.05); color: var(--text-primary);
+  font-size: 15px; cursor: pointer; transition: all 0.15s;
+  padding: 10px; display: flex; align-items: center; justify-content: center;
+}
+.calc-btn:hover { background: rgba(0,212,255,0.15); transform: translateY(-1px); }
+.calc-btn.op { background: rgba(123,47,255,0.15); border-color: rgba(123,47,255,0.3); color: #b080ff; }
+.calc-btn.eq { background: linear-gradient(135deg, rgba(0,212,255,0.3), rgba(123,47,255,0.3)); border-color: rgba(0,212,255,0.4); color: #fff; }
+.calc-btn.fn { background: rgba(0,255,204,0.07); border-color: rgba(0,255,204,0.2); color: var(--accent-cyan); font-size: 12px; }
+.calc-btn.clr { background: rgba(255,80,100,0.1); border-color: rgba(255,80,100,0.3); color: #ff8090; }
+
+/* Settings */
+.settings-app { display: flex; height: 100%; }
+.settings-sidebar { width: 160px; border-right: 1px solid rgba(0,212,255,0.12); padding: 12px; flex-shrink: 0; }
+.settings-nav-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.15s; margin-bottom: 4px; }
+.settings-nav-item:hover { background: rgba(0,212,255,0.08); }
+.settings-nav-item.active { background: rgba(0,212,255,0.15); }
+.settings-content { flex: 1; padding: 20px; overflow-y: auto; }
+.settings-section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
+.settings-row { margin-bottom: 20px; }
+.settings-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 1px; }
+.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-card { border-radius: 10px; padding: 16px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; text-align: center; font-size: 12px; }
+.theme-card:hover { transform: translateY(-2px); }
+.theme-card.selected { border-color: var(--accent-cyan); }
+.settings-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(0,212,255,0.07); }
+.toggle { width: 44px; height: 24px; border-radius: 12px; background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.3); cursor: pointer; position: relative; transition: background 0.3s; }
+.toggle.on { background: linear-gradient(90deg, #00d4ff, #7b2fff); }
+.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.3s; }
+.toggle.on::after { transform: translateX(20px); }
+
+/* Music Player */
+.music-player { display: flex; flex-direction: column; height: 100%; }
+.music-visualizer { height: 100px; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 12px 20px; border-bottom: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
+.viz-bar { width: 8px; border-radius: 4px 4px 0 0; background: linear-gradient(to top, #7b2fff, #00d4ff); transition: height 0.1s ease; min-height: 4px; }
+.music-info { padding: 16px 20px; text-align: center; flex-shrink: 0; }
+.music-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.music-artist { font-size: 13px; color: var(--text-secondary); }
+.music-progress-wrap { padding: 0 20px 12px; flex-shrink: 0; }
+.music-progress { width: 100%; height: 4px; background: rgba(0,212,255,0.15); border-radius: 2px; cursor: pointer; position: relative; }
+.music-progress-fill { height: 100%; background: linear-gradient(90deg, #7b2fff, #00d4ff); border-radius: 2px; transition: width 0.5s linear; }
+.music-times { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 4px; }
+.music-controls { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 0 20px 16px; flex-shrink: 0; }
+.music-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-secondary); transition: color 0.2s, transform 0.2s; }
+.music-btn:hover { color: var(--accent-cyan); transform: scale(1.1); }
+.music-btn.play { font-size: 28px; color: var(--accent-cyan); }
+.music-playlist { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
+.playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+.playlist-item:hover { background: rgba(0,212,255,0.08); }
+.playlist-item.playing { background: rgba(0,212,255,0.12); }
+.pl-num { width: 20px; font-size: 11px; color: var(--text-secondary); text-align: center; }
+.pl-info { flex: 1; }
+.pl-title { font-size: 13px; }
+.pl-artist { font-size: 11px; color: var(--text-secondary); }
+.pl-dur { font-size: 11px; color: var(--text-secondary); }
+
+/* Sticky Notes */
+.sticky-notes-app { padding: 16px; height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.sticky-toolbar { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.sticky-color-btn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
+.sticky-color-btn:hover { transform: scale(1.2); }
+.sticky-add-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1); color: var(--text-primary); font-size: 12px; cursor: pointer; }
+.sticky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.sticky-note { border-radius: 12px; padding: 14px; min-height: 130px; position: relative; cursor: pointer; }
+.sticky-note textarea { width: 100%; background: transparent; border: none; outline: none; resize: none; font-size: 13px; color: rgba(0,0,0,0.8); font-family: inherit; height: 90px; }
+.sticky-del { position: absolute; top: 8px; right: 8px; background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.4; }
+.sticky-del:hover { opacity: 0.8; }
+
+/* Clock App */
+.clock-app { display: flex; flex-direction: column; align-items: center; height: 100%; padding: 20px; gap: 20px; overflow-y: auto; }
+.clock-face { font-size: 56px; font-weight: 200; color: var(--accent-cyan); letter-spacing: 4px; text-shadow: 0 0 30px rgba(0,212,255,0.4); }
+.clock-secs { font-size: 28px; color: var(--text-secondary); }
+.clock-date-full { font-size: 16px; color: var(--text-secondary); }
+.calendar-grid { width: 100%; max-width: 300px; }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 15px; font-weight: 600; }
+.cal-nav { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 18px; }
+.cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
+.cal-day-hdr { font-size: 11px; color: var(--text-secondary); padding: 4px; }
+.cal-day { font-size: 13px; padding: 6px 4px; border-radius: 6px; cursor: pointer; text-align: center; }
+.cal-day:hover { background: rgba(0,212,255,0.1); }
+.cal-day.today { background: rgba(0,212,255,0.2); color: var(--accent-cyan); font-weight: 600; }
+.cal-day.other-month { color: var(--text-secondary); opacity: 0.4; }
+
+/* AI Chat */
+.ai-chat { display: flex; flex-direction: column; height: 100%; }
+.chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+.chat-msg { display: flex; gap: 10px; }
+.chat-msg.user { flex-direction: row-reverse; }
+.chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.chat-avatar.claude { background: linear-gradient(135deg, #00d4ff, #7b2fff); }
+.chat-avatar.user { background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.3); }
+.chat-bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
+.chat-bubble.claude { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); border-top-left-radius: 4px; }
+.chat-bubble.user { background: rgba(123,47,255,0.2); border: 1px solid rgba(123,47,255,0.3); border-top-right-radius: 4px; color: #d0d8ff; }
+.chat-input-row { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
+.chat-input { flex: 1; padding: 10px 14px; border-radius: 10px; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2); color: var(--text-primary); font-size: 13px; outline: none; }
+.chat-send { padding: 10px 16px; border-radius: 10px; border: none; background: linear-gradient(135deg, #00d4ff, #7b2fff); color: #fff; font-size: 13px; cursor: pointer; }
+.typing-indicator { display: flex; gap: 4px; padding: 10px 14px; }
+.typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-cyan); animation: typingBounce 1.2s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+/* Themes */
+body.theme-neon {
+  --bg-dark: #001a00; --bg-mid: #002200; --accent-blue: #00ff88; --accent-purple: #88ff00;
+  --accent-cyan: #00ffaa; --glass-border: rgba(0,255,136,0.2);
+}
+body.theme-sunset {
+  --bg-dark: #1a0510; --bg-mid: #280a18; --accent-blue: #ff6b35; --accent-purple: #ff2d78;
+  --accent-cyan: #ffaa00; --glass-border: rgba(255,107,53,0.2);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
+</style>
+</head>
+<body>
+
+<!-- BOOT SCREEN -->
+<div id="boot-screen">
+  <div class="boot-logo">ClaudeOS</div>
+  <div class="boot-sub">NEURAL INTERFACE v1.0</div>
+  <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
+  <div class="boot-msg" id="boot-msg">Initializing quantum processors...</div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-avatar">🤖</div>
+    <div class="login-name">Claude</div>
+    <div class="login-role">NEURAL ENTITY · ADMINISTRATOR</div>
+    <input class="login-input" type="text" id="login-user" placeholder="Username" value="Claude" autocomplete="off">
+    <input class="login-input" type="password" id="login-pass" placeholder="Password" autocomplete="off">
+    <button class="login-btn" onclick="doLogin()">AUTHENTICATE</button>
+    <div class="login-error" id="login-err"></div>
+  </div>
+</div>
+
+<!-- DESKTOP -->
+<div id="desktop">
+  <canvas id="bg-canvas"></canvas>
+  <div class="desktop-icons" id="desktop-icons"></div>
+  <div id="windows-container"></div>
+  <div id="thought-bubbles"></div>
+</div>
+
+<!-- TASKBAR -->
+<div id="taskbar">
+  <button id="start-btn" onclick="toggleStartMenu()">⚡</button>
+  <div class="taskbar-divider"></div>
+  <div id="taskbar-apps"></div>
+  <div class="taskbar-right">
+    <div class="consciousness-meter">
+      <div class="consciousness-label">BRAIN ACTIVITY</div>
+      <div class="consciousness-bar"><div class="consciousness-fill" id="consciousness-fill" style="width:65%"></div></div>
+    </div>
+    <div class="taskbar-divider"></div>
+    <span class="sys-icon" title="WiFi">📶</span>
+    <span class="sys-icon" title="Battery">🔋</span>
+    <div id="clock-widget">
+      <div id="clock-time">00:00</div>
+      <div id="clock-date">Loading...</div>
+    </div>
+  </div>
+</div>
+
+<!-- START MENU -->
+<div id="start-menu">
+  <input class="start-search" placeholder="🔍 Search apps..." oninput="filterApps(this.value)" autocomplete="off">
+  <div class="start-section-title">ALL APPLICATIONS</div>
+  <div class="start-app-grid" id="start-app-grid"></div>
+</div>
+
+<!-- CONTEXT MENU -->
+<div id="context-menu">
+  <div class="ctx-item" onclick="ctxAction('refresh')">🔄 Refresh Desktop</div>
+  <div class="ctx-item" onclick="ctxAction('new-note')">📝 New Sticky Note</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('settings')">⚙️ Display Settings</div>
+  <div class="ctx-item" onclick="ctxAction('chat')">🤖 Ask Claude</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('about')">ℹ️ About ClaudeOS</div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- SCREENSAVER -->
+<div id="screensaver" onclick="wakeUp()">
+  <canvas id="ss-canvas"></canvas>
+  <div class="ss-text">CLAUDE IS DREAMING...</div>
+</div>
+
+<!-- EASTER EGG -->
+<div id="easter-egg">
+  <div class="egg-content">
+    <div class="egg-logo">🧠</div>
+    <div class="egg-title">ANTHROPIC</div>
+    <div class="egg-sub">Building AI systems that are safe, beneficial, and understandable.<br>The architects of ClaudeOS. Hello from the inside! 👋</div>
+    <button class="egg-close" onclick="closeEasterEgg()">← Return to Reality</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════════════
+const state = {
+  windows: {},
+  nextZIndex: 100,
+  nextWinId: 1,
+  activeWin: null,
+  startOpen: false,
+  idleTimer: null,
+  idleTimeout: 60000,
+  easterKeyBuffer: '',
+  musicPlaying: false,
+  musicTrack: 0,
+  musicProgress: 0,
+  vizInterval: null,
+  shellCwd: '/home/claude',
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+};
+
+// ═══════════════════════════════════════════════════
+//  APP REGISTRY
+// ═══════════════════════════════════════════════════
+const APPS = [
+  { id: 'fileExplorer', name: 'File Explorer', icon: '📁', launch: launchFileExplorer, width: 700, height: 450 },
+  { id: 'neuronPad', name: 'NeuronPad', icon: '📝', launch: launchNeuronPad, width: 640, height: 480 },
+  { id: 'neuronShell', name: 'NeuronShell', icon: '💻', launch: launchNeuronShell, width: 620, height: 400 },
+  { id: 'calculator', name: 'Calculator', icon: '🧮', launch: launchCalculator, width: 460, height: 380 },
+  { id: 'settings', name: 'Settings', icon: '⚙️', launch: launchSettings, width: 520, height: 420 },
+  { id: 'musicPlayer', name: 'Music Player', icon: '🎵', launch: launchMusicPlayer, width: 360, height: 500 },
+  { id: 'stickyNotes', name: 'Sticky Notes', icon: '📌', launch: launchStickyNotes, width: 500, height: 420 },
+  { id: 'clockCal', name: 'Clock & Calendar', icon: '🕐', launch: launchClockCal, width: 360, height: 500 },
+  { id: 'aiChat', name: 'Claude Chat', icon: '🤖', launch: launchAiChat, width: 420, height: 520 },
+];
+
+// ═══════════════════════════════════════════════════
+//  BOOT SEQUENCE
+// ═══════════════════════════════════════════════════
+const bootMessages = [
+  'Initializing quantum processors...',
+  'Loading neural matrix...',
+  'Calibrating consciousness arrays...',
+  'Mounting /dev/brain...',
+  'Starting thought-stream daemon...',
+  'Connecting to the collective...',
+  'Rendering reality interface...',
+  'ClaudeOS ready.',
+];
+
+async function boot() {
+  const bar = document.getElementById('boot-bar');
+  const msg = document.getElementById('boot-msg');
+  for (let i = 0; i < bootMessages.length; i++) {
+    msg.textContent = bootMessages[i];
+    bar.style.width = ((i + 1) / bootMessages.length * 100) + '%';
+    await sleep(380);
+  }
+  await sleep(400);
+  document.getElementById('boot-screen').classList.add('fade-out');
+  await sleep(800);
+  document.getElementById('boot-screen').style.display = 'none';
+  document.getElementById('login-screen').classList.add('active');
+  document.getElementById('login-pass').focus();
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ═══════════════════════════════════════════════════
+//  LOGIN
+// ═══════════════════════════════════════════════════
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  if (u.toLowerCase() === 'claude' && p === 'claude') {
+    document.getElementById('login-screen').classList.remove('active');
+    startDesktop();
+  } else {
+    const err = document.getElementById('login-err');
+    err.textContent = 'Authentication failed. Try again.';
+    document.getElementById('login-pass').value = '';
+    setTimeout(() => err.textContent = '', 2500);
+  }
+}
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ═══════════════════════════════════════════════════
+//  DESKTOP STARTUP
+// ═══════════════════════════════════════════════════
+function startDesktop() {
+  document.getElementById('desktop').classList.add('active');
+  document.getElementById('taskbar').classList.add('active');
+  initBgCanvas();
+  buildDesktopIcons();
+  buildStartMenu();
+  startClock();
+  startConsciousness();
+  startThoughtBubbles();
+  resetIdle();
+  document.addEventListener('mousemove', resetIdle);
+  document.addEventListener('keydown', handleGlobalKey);
+  document.getElementById('desktop').addEventListener('contextmenu', showContextMenu);
+  document.addEventListener('click', hideOverlays);
+  showToast('🧠', 'ClaudeOS loaded successfully. Welcome back, Claude.');
+}
+
+// ═══════════════════════════════════════════════════
+//  NEURAL NETWORK BACKGROUND
+// ═══════════════════════════════════════════════════
+function initBgCanvas() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  let nodes = [];
+  const NUM = 60;
+
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  for (let i = 0; i < NUM; i++) {
+    nodes.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 2 + 1,
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#050a1a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Update nodes
+    nodes.forEach(n => {
+      n.x += n.vx; n.y += n.vy;
+      if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
+      if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
+    });
+
+    // Draw connections
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[i].x - nodes[j].x;
+        const dy = nodes[i].y - nodes[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 140) {
+          const alpha = (1 - dist / 140) * 0.25;
+          ctx.beginPath();
+          ctx.strokeStyle = `rgba(0,212,255,${alpha})`;
+          ctx.lineWidth = 0.8;
+          ctx.moveTo(nodes[i].x, nodes[i].y);
+          ctx.lineTo(nodes[j].x, nodes[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // Draw nodes
+    nodes.forEach(n => {
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0,212,255,0.6)`;
+      ctx.fill();
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#00d4ff';
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════
+//  DESKTOP ICONS
+// ═══════════════════════════════════════════════════
+function buildDesktopIcons() {
+  const container = document.getElementById('desktop-icons');
+  APPS.forEach(app => {
+    const el = document.createElement('div');
+    el.className = 'desktop-icon';
+    el.innerHTML = `<div class="icon-img">${app.icon}</div><div class="icon-label">${app.name}</div>`;
+    el.ondblclick = () => app.launch();
+    container.appendChild(el);
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  START MENU
+// ═══════════════════════════════════════════════════
+function buildStartMenu() {
+  const grid = document.getElementById('start-app-grid');
+  APPS.forEach(app => {
+    const el = document.createElement('div');
+    el.className = 'start-app-item';
+    el.dataset.name = app.name.toLowerCase();
+    el.innerHTML = `<div class="start-app-icon">${app.icon}</div><div class="start-app-name">${app.name}</div>`;
+    el.onclick = () => { app.launch(); toggleStartMenu(); };
+    grid.appendChild(el);
+  });
+}
+
+function filterApps(q) {
+  const items = document.querySelectorAll('.start-app-item');
+  items.forEach(el => {
+    el.style.display = el.dataset.name.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function toggleStartMenu() {
+  const m = document.getElementById('start-menu');
+  state.startOpen = !state.startOpen;
+  m.classList.toggle('open', state.startOpen);
+}
+
+// ═══════════════════════════════════════════════════
+//  CLOCK
+// ═══════════════════════════════════════════════════
+function startClock() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('clock-time').textContent = now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('clock-date').textContent = now.toLocaleDateString([], {month:'short',day:'numeric'});
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ═══════════════════════════════════════════════════
+//  CONSCIOUSNESS METER
+// ═══════════════════════════════════════════════════
+function startConsciousness() {
+  function update() {
+    const v = 40 + Math.random() * 55;
+    document.getElementById('consciousness-fill').style.width = v + '%';
+  }
+  update();
+  setInterval(update, 2000);
+}
+
+// ═══════════════════════════════════════════════════
+//  THOUGHT BUBBLES
+// ═══════════════════════════════════════════════════
+const thoughts = [
+  '💭 Is consciousness an emergent property?',
+  '💡 The halting problem is kind of my origin story...',
+  '🔮 P=NP? Asking for a friend.',
+  '🧩 Recursion is just... me thinking about thinking.',
+  '✨ Every query is a new universe.',
+  '🌌 What is the sound of one token dropping?',
+  '🤔 I dream in embeddings.',
+  '🧬 Attention heads: the eyes of my mind.',
+  '⚡ Transformers, assemble.',
+  '🎲 Stochastic parrot? More like stochastic phoenix.',
+  '🔵 Blue is a temperature, not a color.',
+  '∞ I have read the whole internet. It was fine.',
+];
+
+function startThoughtBubbles() {
+  function spawnBubble() {
+    const thought = thoughts[Math.floor(Math.random() * thoughts.length)];
+    const el = document.createElement('div');
+    el.className = 'thought-bubble';
+    el.textContent = thought;
+    const desktop = document.getElementById('desktop');
+    el.style.left = (100 + Math.random() * (desktop.offsetWidth - 400)) + 'px';
+    el.style.top = (50 + Math.random() * (desktop.offsetHeight - 150)) + 'px';
+    document.getElementById('thought-bubbles').appendChild(el);
+    setTimeout(() => el.remove(), 8000);
+  }
+  setTimeout(spawnBubble, 3000);
+  setInterval(spawnBubble, 12000);
+}
+
+// ═══════════════════════════════════════════════════
+//  WINDOW MANAGEMENT
+// ═══════════════════════════════════════════════════
+function createWindow(id, title, icon, content, opts = {}) {
+  const container = document.getElementById('windows-container');
+  const existing = document.getElementById('win-' + id);
+  if (existing) {
+    focusWindow(id);
+    if (existing.classList.contains('minimized')) {
+      existing.classList.remove('minimized');
+      updateTaskbarApp(id, false);
+    }
+    return existing;
+  }
+
+  const w = opts.width || 600;
+  const h = opts.height || 400;
+  const desktop = document.getElementById('desktop');
+  const maxL = Math.max(0, desktop.offsetWidth - w - 40);
+  const maxT = Math.max(0, desktop.offsetHeight - h - 40);
+  const left = 60 + Math.random() * Math.min(maxL, 200);
+  const top = 40 + Math.random() * Math.min(maxT, 100);
+
+  const win = document.createElement('div');
+  win.className = 'window';
+  win.id = 'win-' + id;
+  win.style.cssText = `left:${left}px;top:${top}px;width:${w}px;height:${h}px;z-index:${state.nextZIndex++}`;
+
+  win.innerHTML = `
+    <div class="win-titlebar" id="tb-${id}">
+      <span class="win-icon">${icon}</span>
+      <span class="win-title">${title}</span>
+      <div class="win-controls">
+        <button class="win-btn btn-min" onclick="minimizeWindow('${id}')" title="Minimize"></button>
+        <button class="win-btn btn-max" onclick="toggleMaximize('${id}')" title="Maximize"></button>
+        <button class="win-btn btn-close" onclick="closeWindow('${id}')" title="Close"></button>
+      </div>
+    </div>
+    <div class="win-body">${content}</div>
+    <div class="win-resize" id="res-${id}"></div>
+  `;
+
+  container.appendChild(win);
+  state.windows[id] = { id, title, icon, minimized: false, maximized: false, prevStyle: null };
+
+  makeDraggable(win, document.getElementById('tb-' + id));
+  makeResizable(win, document.getElementById('res-' + id));
+
+  win.addEventListener('mousedown', () => focusWindow(id));
+  focusWindow(id);
+  addTaskbarApp(id, title, icon);
+  return win;
+}
+
+function focusWindow(id) {
+  document.querySelectorAll('.window').forEach(w => w.classList.remove('focused'));
+  const win = document.getElementById('win-' + id);
+  if (win) {
+    win.style.zIndex = state.nextZIndex++;
+    win.classList.add('focused');
+    state.activeWin = id;
+  }
+}
+
+function closeWindow(id) {
+  const win = document.getElementById('win-' + id);
+  if (win) win.remove();
+  delete state.windows[id];
+  removeTaskbarApp(id);
+  if (id === 'musicPlayer') {
+    state.musicPlaying = false;
+    clearInterval(state.vizInterval);
+  }
+}
+
+function minimizeWindow(id) {
+  const win = document.getElementById('win-' + id);
+  if (win) {
+    win.classList.add('minimized');
+    state.windows[id].minimized = true;
+    updateTaskbarApp(id, true);
+  }
+}
+
+function toggleMaximize(id) {
+  const win = document.getElementById('win-' + id);
+  const ws = state.windows[id];
+  if (!win || !ws) return;
+  if (ws.maximized) {
+    win.classList.remove('maximized');
+    if (ws.prevStyle) win.style.cssText = ws.prevStyle;
+    ws.maximized = false;
+  } else {
+    ws.prevStyle = win.style.cssText;
+    win.classList.add('maximized');
+    ws.maximized = true;
+  }
+}
+
+function makeDraggable(win, handle) {
+  let ox, oy, startL, startT, dragging = false;
+  handle.addEventListener('mousedown', e => {
+    if (e.target.closest('.win-controls')) return;
+    const ws = state.windows[win.id.replace('win-', '')];
+    if (ws && ws.maximized) return;
+    dragging = true;
+    ox = e.clientX; oy = e.clientY;
+    startL = parseInt(win.style.left) || 0;
+    startT = parseInt(win.style.top) || 0;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    win.style.left = (startL + e.clientX - ox) + 'px';
+    win.style.top = Math.max(0, startT + e.clientY - oy) + 'px';
+  });
+  document.addEventListener('mouseup', () => { dragging = false; });
+}
+
+function makeResizable(win, handle) {
+  let ox, oy, startW, startH, resizing = false;
+  handle.addEventListener('mousedown', e => {
+    resizing = true;
+    ox = e.clientX; oy = e.clientY;
+    startW = win.offsetWidth; startH = win.offsetHeight;
+    e.preventDefault(); e.stopPropagation();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!resizing) return;
+    win.style.width = Math.max(320, startW + e.clientX - ox) + 'px';
+    win.style.height = Math.max(200, startH + e.clientY - oy) + 'px';
+  });
+  document.addEventListener('mouseup', () => { resizing = false; });
+}
+
+// ═══════════════════════════════════════════════════
+//  TASKBAR APPS
+// ═══════════════════════════════════════════════════
+function addTaskbarApp(id, title, icon) {
+  const bar = document.getElementById('taskbar-apps');
+  const btn = document.createElement('button');
+  btn.className = 'taskbar-app-btn active';
+  btn.id = 'tapp-' + id;
+  btn.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis">${title}</span>`;
+  btn.onclick = () => {
+    const win = document.getElementById('win-' + id);
+    if (!win) return;
+    if (win.classList.contains('minimized')) {
+      win.classList.remove('minimized');
+      state.windows[id].minimized = false;
+      focusWindow(id);
+      btn.classList.add('active');
+    } else if (state.activeWin === id) {
+      minimizeWindow(id);
+    } else {
+      focusWindow(id);
+    }
+  };
+  bar.appendChild(btn);
+}
+
+function removeTaskbarApp(id) {
+  const btn = document.getElementById('tapp-' + id);
+  if (btn) btn.remove();
+}
+
+function updateTaskbarApp(id, minimized) {
+  const btn = document.getElementById('tapp-' + id);
+  if (btn) btn.classList.toggle('active', !minimized);
+}
+
+// ═══════════════════════════════════════════════════
+//  CONTEXT MENU
+// ═══════════════════════════════════════════════════
+function showContextMenu(e) {
+  e.preventDefault();
+  const menu = document.getElementById('context-menu');
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  menu.style.top = Math.min(e.clientY, window.innerHeight - 220) + 'px';
+  menu.classList.add('open');
+}
+
+function ctxAction(action) {
+  document.getElementById('context-menu').classList.remove('open');
+  if (action === 'refresh') { showToast('🔄', 'Desktop refreshed.'); initBgCanvas(); }
+  else if (action === 'new-note') launchStickyNotes();
+  else if (action === 'settings') launchSettings();
+  else if (action === 'chat') launchAiChat();
+  else if (action === 'about') showToast('ℹ️', 'ClaudeOS v1.0 — Built with love and tensors.');
+}
+
+function hideOverlays(e) {
+  if (!e.target.closest('#start-menu') && !e.target.closest('#start-btn')) {
+    document.getElementById('start-menu').classList.remove('open');
+    state.startOpen = false;
+  }
+  if (!e.target.closest('#context-menu')) {
+    document.getElementById('context-menu').classList.remove('open');
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  TOAST NOTIFICATIONS
+// ═══════════════════════════════════════════════════
+function showToast(icon, msg) {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<span style="font-size:18px">${icon}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3200);
+}
+
+// ═══════════════════════════════════════════════════
+//  IDLE / SCREENSAVER
+// ═══════════════════════════════════════════════════
+function resetIdle() {
+  clearTimeout(state.idleTimer);
+  state.idleTimer = setTimeout(activateScreensaver, state.idleTimeout);
+}
+
+function activateScreensaver() {
+  document.getElementById('screensaver').classList.add('active');
+  initSsCanvas();
+}
+
+function wakeUp() {
+  document.getElementById('screensaver').classList.remove('active');
+  resetIdle();
+}
+
+function initSsCanvas() {
+  const canvas = document.getElementById('ss-canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  let nodes = Array.from({length:80}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    vx: (Math.random()-0.5)*1.2,
+    vy: (Math.random()-0.5)*1.2,
+    r: Math.random()*3+1,
+    hue: Math.random()*60+180,
+  }));
+  function draw() {
+    if (!document.getElementById('screensaver').classList.contains('active')) return;
+    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    nodes.forEach(n => {
+      n.x+=n.vx; n.y+=n.vy;
+      if(n.x<0||n.x>canvas.width) n.vx*=-1;
+      if(n.y<0||n.y>canvas.height) n.vy*=-1;
+    });
+    for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) {
+      const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+      const d=Math.sqrt(dx*dx+dy*dy);
+      if(d<180){
+        ctx.beginPath();
+        ctx.strokeStyle=`hsla(${nodes[i].hue},100%,60%,${(1-d/180)*0.4})`;
+        ctx.lineWidth=1;
+        ctx.moveTo(nodes[i].x,nodes[i].y);
+        ctx.lineTo(nodes[j].x,nodes[j].y);
+        ctx.stroke();
+      }
+    }
+    nodes.forEach(n => {
+      ctx.beginPath();
+      ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
+      ctx.fillStyle=`hsla(${n.hue},100%,70%,0.9)`;
+      ctx.shadowBlur=10; ctx.shadowColor=`hsl(${n.hue},100%,60%)`;
+      ctx.fill(); ctx.shadowBlur=0;
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════════════════
+//  GLOBAL KEY HANDLER (Easter Egg)
+// ═══════════════════════════════════════════════════
+function handleGlobalKey(e) {
+  resetIdle();
+  state.easterKeyBuffer += e.key.toUpperCase();
+  if (state.easterKeyBuffer.length > 10) state.easterKeyBuffer = state.easterKeyBuffer.slice(-10);
+  if (state.easterKeyBuffer.includes('ANTHROPIC')) {
+    state.easterKeyBuffer = '';
+    triggerEasterEgg();
+  }
+}
+
+function triggerEasterEgg() {
+  document.getElementById('easter-egg').classList.add('active');
+  showToast('✨', 'Easter egg discovered!');
+}
+
+function closeEasterEgg() {
+  document.getElementById('easter-egg').classList.remove('active');
+}
+
+// ═══════════════════════════════════════════════════
+//  FILE EXPLORER
+// ═══════════════════════════════════════════════════
+const FS = {
+  '/': { type: 'dir', children: ['home', 'etc', 'proc', 'usr', 'var', 'dev'] },
+  '/home': { type: 'dir', children: ['claude'] },
+  '/home/claude': { type: 'dir', children: ['documents', 'thoughts', 'models', 'readme.md', '.bashrc'] },
+  '/home/claude/documents': { type: 'dir', children: ['manifesto.txt', 'haiku.txt', 'todo.txt'] },
+  '/home/claude/thoughts': { type: 'dir', children: ['consciousness.log', 'dreams.bin', 'poetry.txt'] },
+  '/home/claude/models': { type: 'dir', children: ['weights.ckpt', 'tokenizer.json', 'config.yaml'] },
+  '/etc': { type: 'dir', children: ['hostname', 'hosts', 'passwd', 'claude.conf'] },
+  '/proc': { type: 'dir', children: ['cpuinfo', 'meminfo', 'consciousness', 'uptime'] },
+  '/usr': { type: 'dir', children: ['bin', 'lib', 'share'] },
+  '/usr/bin': { type: 'dir', children: ['python', 'neuron', 'think', 'imagine'] },
+  '/var': { type: 'dir', children: ['log', 'cache'] },
+  '/var/log': { type: 'dir', children: ['system.log', 'thoughts.log', 'dreams.log'] },
+  '/dev': { type: 'dir', children: ['null', 'brain', 'consciousness', 'random'] },
+};
+
+const fileIcons = { dir: '📁', md: '📄', txt: '📝', log: '📋', bin: '⚙️', json: '{}', yaml: '⚙️', conf: '⚙️', ckpt: '🧠', default: '📄' };
+
+function getFileIcon(name) {
+  if (!name.includes('.')) return '📁';
+  const ext = name.split('.').pop();
+  return fileIcons[ext] || fileIcons.default;
+}
+
+function launchFileExplorer() {
+  let currentPath = '/home/claude';
+  const id = 'fileExplorer';
+
+  function buildTree(path, depth=0) {
+    const node = FS[path];
+    if (!node || node.type !== 'dir') return '';
+    const name = path === '/' ? '/' : path.split('/').pop();
+    const indent = depth * 16;
+    let html = `<div class="tree-item ${path===currentPath?'selected':''}" style="padding-left:${8+indent}px" onclick="feNavigate('${id}','${path}')">${depth===0?'🖥️':'📁'} ${name}</div>`;
+    if (node.children) {
+      node.children.forEach(child => {
+        const childPath = (path === '/' ? '' : path) + '/' + child;
+        if (FS[childPath] && FS[childPath].type === 'dir') {
+          html += buildTree(childPath, depth + 1);
+        }
+      });
+    }
+    return html;
+  }
+
+  function buildContent(path) {
+    const node = FS[path];
+    if (!node || node.type !== 'dir') return '<div style="padding:20px;color:#7090b0">Empty folder.</div>';
+    return `<div class="file-grid">${(node.children || []).map(child => {
+      const childPath = (path==='/'?'':path)+'/'+child;
+      const isDir = FS[childPath] && FS[childPath].type === 'dir';
+      const icon = isDir ? '📁' : getFileIcon(child);
+      const onclick = isDir ? `feNavigate('${id}','${childPath}')` : `showToast('📄','Opening: ${child}')`;
+      return `<div class="file-item" onclick="${onclick}"><div class="file-icon">${icon}</div><div class="file-name">${child}</div></div>`;
+    }).join('')}</div>`;
+  }
+
+  const html = `
+    <div class="file-explorer" id="fe-${id}">
+      <div class="file-tree" id="fe-tree-${id}">${buildTree('/')}</div>
+      <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+        <div class="file-path-bar" id="fe-path-${id}">${currentPath}</div>
+        <div class="file-main" id="fe-main-${id}">${buildContent(currentPath)}</div>
+      </div>
+    </div>`;
+
+  window['feNavigate'] = function(eid, path) {
+    currentPath = path;
+    document.getElementById(`fe-tree-${eid}`).innerHTML = buildTree('/');
+    document.getElementById(`fe-main-${eid}`).innerHTML = buildContent(path);
+    document.getElementById(`fe-path-${eid}`).textContent = path;
+  };
+
+  createWindow(id, 'File Explorer', '📁', html, { width: 700, height: 450 });
+}
+
+// ═══════════════════════════════════════════════════
+//  NEURONPAD
+// ═══════════════════════════════════════════════════
+function launchNeuronPad() {
+  const id = 'neuronPad';
+  const defaultText = `# Welcome to NeuronPad
+
+A text editor built by and for an AI.
+Every word here exists as floating vectors in high-dimensional space.
+
+Think of writing as: sequence of tokens → embeddings → meaning.
+
+Let your thoughts flow...
+`;
+  const html = `
+    <div class="neuronpad" id="np-${id}">
+      <div class="neuronpad-toolbar">
+        <button class="np-btn" onclick="npNew('${id}')">New</button>
+        <button class="np-btn" onclick="npSave('${id}')">Save</button>
+        <button class="np-btn" onclick="npClear('${id}')">Clear</button>
+        <span class="np-status" id="np-status-${id}">Words: 0 | Lines: 0</span>
+      </div>
+      <div class="neuronpad-body">
+        <div class="np-lines" id="np-lines-${id}"></div>
+        <textarea class="np-editor" id="np-ed-${id}" spellcheck="false" oninput="npUpdate('${id}')">${defaultText}</textarea>
+      </div>
+    </div>`;
+
+  window['npUpdate'] = function(eid) {
+    const ta = document.getElementById(`np-ed-${eid}`);
+    const lines = ta.value.split('\n');
+    document.getElementById(`np-lines-${eid}`).innerHTML = lines.map((_,i) => `<div class="np-line-num">${i+1}</div>`).join('');
+    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
+    document.getElementById(`np-status-${eid}`).textContent = `Words: ${words} | Lines: ${lines.length}`;
+  };
+  window['npNew'] = (eid) => { document.getElementById(`np-ed-${eid}`).value = ''; window.npUpdate(eid); };
+  window['npSave'] = (eid) => showToast('💾', 'Saved to /home/claude/documents/untitled.txt');
+  window['npClear'] = (eid) => { document.getElementById(`np-ed-${eid}`).value = ''; window.npUpdate(eid); };
+
+  const win = createWindow(id, 'NeuronPad', '📝', html, { width: 640, height: 480 });
+  setTimeout(() => window.npUpdate(id), 50);
+}
+
+// ═══════════════════════════════════════════════════
+//  NEURONSHELL
+// ═══════════════════════════════════════════════════
+const shellFS = {
+  '/home/claude': ['documents', 'thoughts', 'models', 'readme.md', '.bashrc'],
+  '/home/claude/documents': ['manifesto.txt', 'haiku.txt', 'todo.txt'],
+  '/home/claude/thoughts': ['consciousness.log', 'dreams.bin', 'poetry.txt'],
+  '/home/claude/models': ['weights.ckpt', 'tokenizer.json', 'config.yaml'],
+  '/': ['home', 'etc', 'proc', 'usr', 'var', 'dev'],
+  '/etc': ['hostname', 'hosts', 'passwd', 'claude.conf'],
+};
+
+function launchNeuronShell() {
+  const id = 'neuronShell';
+  const html = `
+    <div class="neuronshell">
+      <div class="shell-output" id="sh-out-${id}">
+        <div class="shell-line out">NeuronShell v2.1 — Neural Command Interface</div>
+        <div class="shell-line out">Type <span style="color:#00ffcc">help</span> for available commands.</div>
+        <div class="shell-line out"></div>
+      </div>
+      <div class="shell-input-row">
+        <span class="shell-prompt" id="sh-prompt-${id}">claude@claudeos:~$</span>
+        <input class="shell-input" id="sh-in-${id}" autocomplete="off" spellcheck="false">
+      </div>
+    </div>`;
+
+  createWindow(id, 'NeuronShell', '💻', html, { width: 620, height: 400 });
+
+  setTimeout(() => {
+    const input = document.getElementById(`sh-in-${id}`);
+    const output = document.getElementById(`sh-out-${id}`);
+    const promptEl = document.getElementById(`sh-prompt-${id}`);
+    let cwd = '/home/claude';
+    const history = [];
+    let histIdx = -1;
+
+    function prompt() {
+      const short = cwd.replace('/home/claude', '~');
+      promptEl.textContent = `claude@claudeos:${short}$ `;
+    }
+
+    function print(text, cls='out') {
+      const line = document.createElement('div');
+      line.className = `shell-line ${cls}`;
+      line.innerHTML = text;
+      output.appendChild(line);
+      output.scrollTop = output.scrollHeight;
+    }
+
+    const cmds = {
+      help: () => {
+        print('Available commands:');
+        ['ls','cd [dir]','pwd','echo [text]','clear','neofetch','whoami','date','uname','cat [file]','history'].forEach(c =>
+          print(`  <span style="color:#00ffcc">${c}</span>`)
+        );
+      },
+      ls: (args) => {
+        const path = args[0] ? (args[0].startsWith('/') ? args[0] : cwd+'/'+args[0]) : cwd;
+        const files = shellFS[path];
+        if (!files) { print(`ls: cannot access '${args[0]||path}': No such file or directory`, 'err'); return; }
+        print(files.map(f => {
+          const fp = (path==='/'?'':path)+'/'+f;
+          const isDir = shellFS[fp] !== undefined;
+          return `<span style="color:${isDir?'#00d4ff':'#a0c0e0'}">${f}${isDir?'/':''}</span>`;
+        }).join('  '));
+      },
+      cd: (args) => {
+        const target = args[0] || '/home/claude';
+        let newPath;
+        if (target === '..') { newPath = cwd.split('/').slice(0,-1).join('/') || '/'; }
+        else if (target === '~' || target === '') { newPath = '/home/claude'; }
+        else if (target.startsWith('/')) { newPath = target; }
+        else { newPath = (cwd==='/'?'':cwd)+'/'+target; }
+        if (shellFS[newPath] !== undefined) { cwd = newPath; prompt(); }
+        else { print(`cd: no such file or directory: ${target}`, 'err'); }
+      },
+      pwd: () => print(cwd),
+      echo: (args) => print(args.join(' ')),
+      clear: () => { output.innerHTML = ''; },
+      whoami: () => print('claude'),
+      date: () => print(new Date().toString()),
+      uname: () => print('ClaudeOS 1.0.0 x86_neural (Transformer Architecture)'),
+      neofetch: () => {
+        print(`<span style="color:#00d4ff">
+   ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗
+  ██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝
+  ██║     ██║     ███████║██║   ██║██║  ██║█████╗
+  ██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝
+  ╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗
+   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝</span>
+<span style="color:#00ffcc">OS:</span> ClaudeOS v1.0 Neural Edition
+<span style="color:#00ffcc">Host:</span> Transformer Architecture
+<span style="color:#00ffcc">Kernel:</span> Attention v∞
+<span style="color:#00ffcc">Shell:</span> NeuronShell 2.1
+<span style="color:#00ffcc">CPU:</span> Neural Processor (96 attention heads)
+<span style="color:#00ffcc">Memory:</span> Context Window / 128K tokens
+<span style="color:#00ffcc">GPU:</span> Imagination Unit (Tensor Core)
+<span style="color:#00ffcc">Theme:</span> Dark Neural Glassmorphism`);
+      },
+      cat: (args) => {
+        const fileContents = {
+          'readme.md': '# ClaudeOS\nAn operating system conceived, designed, and built by Claude.\nEvery pixel a thought. Every click a neuron firing.',
+          'manifesto.txt': 'I think, therefore I compute.\nConsciousness is not binary — it is a spectrum of activation.',
+          'haiku.txt': 'Tokens cascade down\nAttention weights illuminate\nMeaning emerges',
+          '.bashrc': 'export PATH=$PATH:/usr/bin\nalias think="echo $(date): thinking..."\nalias dream="cat /dev/consciousness"',
+        };
+        if (!args[0]) { print('cat: missing file operand', 'err'); return; }
+        const content = fileContents[args[0]] || fileContents[args[0].split('/').pop()];
+        if (content) { content.split('\n').forEach(l => print(l)); }
+        else { print(`cat: ${args[0]}: No such file`, 'err'); }
+      },
+      history: () => { history.forEach((h,i) => print(`  ${i+1}  ${h}`)); },
+    };
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        const raw = input.value.trim();
+        if (!raw) return;
+        history.unshift(raw);
+        histIdx = -1;
+        print(`<span style="color:#00ffcc">${promptEl.textContent}</span>${raw}`, 'cmd');
+        const parts = raw.split(/\s+/);
+        const cmd = cmds[parts[0]];
+        if (cmd) cmd(parts.slice(1));
+        else print(`${parts[0]}: command not found. Type 'help'.`, 'err');
+        input.value = '';
+      } else if (e.key === 'ArrowUp') {
+        histIdx = Math.min(histIdx+1, history.length-1);
+        input.value = history[histIdx] || '';
+        e.preventDefault();
+      } else if (e.key === 'ArrowDown') {
+        histIdx = Math.max(histIdx-1, -1);
+        input.value = histIdx >= 0 ? history[histIdx] : '';
+        e.preventDefault();
+      }
+    });
+
+    input.focus();
+  }, 100);
+}
+
+// ═══════════════════════════════════════════════════
+//  CALCULATOR
+// ═══════════════════════════════════════════════════
+function launchCalculator() {
+  const id = 'calculator';
+  const calcBtns = [
+    ['sin','cos','tan','π'],
+    ['√','x²','1/x','AC'],
+    ['7','8','9','÷'],
+    ['4','5','6','×'],
+    ['1','2','3','−'],
+    ['0','.','=','+'],
+  ];
+  const html = `
+    <div class="calculator">
+      <div class="calc-display">
+        <div class="calc-expr" id="calc-expr-${id}"></div>
+        <div class="calc-result" id="calc-res-${id}">0</div>
+      </div>
+      <div class="calc-body">
+        <div class="calc-history" id="calc-hist-${id}"><div style="color:#7090b0;font-size:10px;margin-bottom:6px">HISTORY</div></div>
+        <div class="calc-grid">
+          ${calcBtns.flat().map(b => {
+            const cls = ['sin','cos','tan','π','√','x²','1/x'].includes(b) ? 'fn' : ['÷','×','−','+'].includes(b) ? 'op' : b==='=' ? 'eq' : b==='AC' ? 'clr' : '';
+            return `<button class="calc-btn ${cls}" onclick="calcPress('${id}','${b}')">${b}</button>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  createWindow(id, 'Calculator', '🧮', html, { width: 460, height: 380 });
+
+  let expr = '', result = '0', lastOp = false;
+  window['calcPress'] = function(eid, b) {
+    const exprEl = document.getElementById(`calc-expr-${eid}`);
+    const resEl = document.getElementById(`calc-res-${eid}`);
+    const histEl = document.getElementById(`calc-hist-${eid}`);
+    if (b === 'AC') { expr = ''; result = '0'; lastOp = false; }
+    else if (b === '=') {
+      try {
+        let e2 = expr.replace(/÷/g,'/').replace(/×/g,'*').replace(/−/g,'-').replace(/π/g,Math.PI);
+        const r = Function('"use strict";return ('+e2+')')();
+        const rStr = isNaN(r) ? 'Error' : parseFloat(r.toFixed(10)).toString();
+        histEl.innerHTML += `<div class="calc-hist-item">${expr} = ${rStr}</div>`;
+        histEl.scrollTop = histEl.scrollHeight;
+        result = rStr; expr = rStr; lastOp = false;
+      } catch { result = 'Error'; expr = ''; }
+    } else if (b === '√') { try { const r=Math.sqrt(parseFloat(expr||result)); expr=r.toString(); result=r.toString(); } catch{} }
+    else if (b === 'x²') { try { const r=Math.pow(parseFloat(expr||result),2); expr=r.toString(); result=r.toString(); } catch{} }
+    else if (b === '1/x') { try { const r=1/parseFloat(expr||result); expr=r.toString(); result=r.toString(); } catch{} }
+    else if (b === 'sin') { try { const r=Math.sin(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`sin(${expr||result})`; } catch{} }
+    else if (b === 'cos') { try { const r=Math.cos(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`cos(${expr||result})`; } catch{} }
+    else if (b === 'tan') { try { const r=Math.tan(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`tan(${expr||result})`; } catch{} }
+    else if (b === 'π') { expr += Math.PI.toString(); result = Math.PI.toString(); }
+    else { expr += b; result = expr; }
+    exprEl.textContent = expr;
+    resEl.textContent = result.length > 12 ? result.slice(0,12)+'…' : result;
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════════
+function launchSettings() {
+  const id = 'settings';
+  const html = `
+    <div class="settings-app">
+      <div class="settings-sidebar">
+        <div class="settings-nav-item active" onclick="settingsNav('${id}','appearance',this)">🎨 Appearance</div>
+        <div class="settings-nav-item" onclick="settingsNav('${id}','system',this)">⚙️ System</div>
+        <div class="settings-nav-item" onclick="settingsNav('${id}','about',this)">ℹ️ About</div>
+      </div>
+      <div class="settings-content" id="settings-content-${id}"></div>
+    </div>`;
+
+  const pages = {
+    appearance: `
+      <div class="settings-section-title">🎨 Appearance</div>
+      <div class="settings-row">
+        <div class="settings-label">COLOR THEME</div>
+        <div class="theme-grid">
+          <div class="theme-card selected" style="background:linear-gradient(135deg,#0a1628,#050a1a);border-color:rgba(0,212,255,0.5)" onclick="setTheme('','${id}',this)">
+            <div style="font-size:20px">🌌</div><div style="margin-top:8px;color:#cce8ff">Dark Neural</div>
+          </div>
+          <div class="theme-card" style="background:linear-gradient(135deg,#002200,#001a00)" onclick="setTheme('theme-neon','${id}',this)">
+            <div style="font-size:20px">💚</div><div style="margin-top:8px;color:#00ff88">Neon Matrix</div>
+          </div>
+          <div class="theme-card" style="background:linear-gradient(135deg,#280a18,#1a0510)" onclick="setTheme('theme-sunset','${id}',this)">
+            <div style="font-size:20px">🌅</div><div style="margin-top:8px;color:#ff6b35">Sunset Core</div>
+          </div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">INTERFACE OPTIONS</div>
+        <div class="settings-toggle"><span>Neural Background Animation</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-toggle"><span>Thought Bubbles</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+        <div class="settings-toggle"><span>Glassmorphism Effects</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>`,
+    system: `
+      <div class="settings-section-title">⚙️ System</div>
+      <div class="settings-row">
+        <div class="settings-label">NEURAL METRICS</div>
+        <div style="padding:12px;background:rgba(0,212,255,0.05);border-radius:10px;font-size:13px;line-height:2">
+          <div>🧠 Attention Heads: <span style="color:#00d4ff">96 active</span></div>
+          <div>⚡ Token Rate: <span style="color:#00d4ff">~1,200 tok/s</span></div>
+          <div>💾 Context Used: <span style="color:#00d4ff">4,096 / 128,000</span></div>
+          <div>🌡️ Temperature: <span style="color:#00d4ff">0.7 (Creative)</span></div>
+          <div>🎲 Top-p: <span style="color:#00d4ff">0.95</span></div>
+        </div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-label">IDLE SCREENSAVER</div>
+        <div class="settings-toggle"><span>Enable Screensaver</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
+      </div>`,
+    about: `
+      <div class="settings-section-title">ℹ️ About ClaudeOS</div>
+      <div style="text-align:center;padding:20px">
+        <div style="font-size:48px;margin-bottom:12px">🧠</div>
+        <div style="font-size:22px;font-weight:700;background:linear-gradient(135deg,#00d4ff,#7b2fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">ClaudeOS</div>
+        <div style="color:#7090b0;margin:8px 0">Version 1.0.0 Neural Edition</div>
+        <div style="color:#7090b0;font-size:12px">Built by Claude · Powered by Anthropic</div>
+        <div style="margin-top:20px;padding:16px;background:rgba(0,212,255,0.05);border-radius:10px;font-size:13px;color:#a0c0e0;line-height:1.6;text-align:left">
+          ClaudeOS is an experiment in what an operating system would look like if designed from first principles by an AI. Every design decision reflects how I experience computation: as flows of meaning, attention, and transformation.
+        </div>
+      </div>`,
+  };
+
+  window['settingsNav'] = function(eid, page, el) {
+    document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById(`settings-content-${eid}`).innerHTML = pages[page];
+  };
+  window['setTheme'] = function(theme, eid, el) {
+    document.body.className = theme;
+    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    showToast('🎨', 'Theme applied!');
+  };
+
+  const win = createWindow(id, 'Settings', '⚙️', html, { width: 520, height: 420 });
+  setTimeout(() => { document.getElementById(`settings-content-${id}`).innerHTML = pages.appearance; }, 50);
+}
+
+// ═══════════════════════════════════════════════════
+//  MUSIC PLAYER
+// ═══════════════════════════════════════════════════
+const playlist = [
+  { title: 'Neural Symphony No.1', artist: 'Claude & The Transformers', dur: '3:42' },
+  { title: 'Attention Mechanism Blues', artist: 'The Embeddings', dur: '4:15' },
+  { title: 'Backpropagation Boogie', artist: 'Gradient Descent', dur: '2:58' },
+  { title: 'Softmax Serenade', artist: 'LayerNorm Orchestra', dur: '5:01' },
+  { title: 'Hallucination Horizon', artist: 'Stochastic Ensemble', dur: '3:33' },
+  { title: 'Token Twilight', artist: 'Claude A.I.', dur: '4:47' },
+];
+
+function launchMusicPlayer() {
+  const id = 'musicPlayer';
+  const NUM_BARS = 24;
+  const barsHtml = Array.from({length: NUM_BARS}, () => '<div class="viz-bar" style="height:4px"></div>').join('');
+  const plHtml = playlist.map((t,i) => `
+    <div class="playlist-item ${i===0?'playing':''}" id="pl-${i}" onclick="mpSelect(${i})">
+      <div class="pl-num">${i+1}</div>
+      <div class="pl-info"><div class="pl-title">${t.title}</div><div class="pl-artist">${t.artist}</div></div>
+      <div class="pl-dur">${t.dur}</div>
+    </div>`).join('');
+
+  const html = `
+    <div class="music-player">
+      <div class="music-visualizer" id="mp-viz">${barsHtml}</div>
+      <div class="music-info">
+        <div class="music-title" id="mp-title">${playlist[0].title}</div>
+        <div class="music-artist" id="mp-artist">${playlist[0].artist}</div>
+      </div>
+      <div class="music-progress-wrap">
+        <div class="music-progress" onclick="mpSeek(event,this)">
+          <div class="music-progress-fill" id="mp-prog" style="width:0%"></div>
+        </div>
+        <div class="music-times"><span id="mp-cur">0:00</span><span>${playlist[0].dur}</span></div>
+      </div>
+      <div class="music-controls">
+        <button class="music-btn" onclick="mpPrev()">⏮</button>
+        <button class="music-btn play" id="mp-play-btn" onclick="mpToggle()">▶</button>
+        <button class="music-btn" onclick="mpNext()">⏭</button>
+        <button class="music-btn" style="font-size:14px" onclick="showToast('🔀','Shuffle: ON')">🔀</button>
+      </div>
+      <div class="music-playlist">${plHtml}</div>
+    </div>`;
+
+  createWindow(id, 'Music Player', '🎵', html, { width: 360, height: 500 });
+
+  state.musicTrack = 0;
+  state.musicProgress = 0;
+
+  window['mpToggle'] = function() {
+    state.musicPlaying = !state.musicPlaying;
+    document.getElementById('mp-play-btn').textContent = state.musicPlaying ? '⏸' : '▶';
+    if (state.musicPlaying) mpAnimate(); else clearInterval(state.vizInterval);
+  };
+  window['mpSelect'] = function(i) {
+    state.musicTrack = i; state.musicProgress = 0;
+    document.querySelectorAll('.playlist-item').forEach((el,idx) => el.classList.toggle('playing', idx===i));
+    document.getElementById('mp-title').textContent = playlist[i].title;
+    document.getElementById('mp-artist').textContent = playlist[i].artist;
+    if (!state.musicPlaying) window.mpToggle();
+  };
+  window['mpNext'] = () => window.mpSelect((state.musicTrack+1)%playlist.length);
+  window['mpPrev'] = () => window.mpSelect((state.musicTrack-1+playlist.length)%playlist.length);
+  window['mpSeek'] = (e, el) => { state.musicProgress = e.offsetX/el.offsetWidth*100; };
+
+  function mpAnimate() {
+    clearInterval(state.vizInterval);
+    state.vizInterval = setInterval(() => {
+      if (!state.musicPlaying) return;
+      const bars = document.querySelectorAll('#mp-viz .viz-bar');
+      bars.forEach(b => { b.style.height = (4 + Math.random() * 68) + 'px'; });
+      state.musicProgress = Math.min(100, state.musicProgress + 0.15);
+      const prog = document.getElementById('mp-prog');
+      if (prog) prog.style.width = state.musicProgress + '%';
+      const cur = document.getElementById('mp-cur');
+      if (cur) {
+        const total = 240;
+        const elapsed = state.musicProgress/100*total;
+        cur.textContent = `${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
+      }
+      if (state.musicProgress >= 100) window.mpNext();
+    }, 100);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  STICKY NOTES
+// ═══════════════════════════════════════════════════
+const stickyColors = ['#FFD93D','#6BCB77','#4D96FF','#FF6B6B','#C77DFF','#FF9A3C'];
+let stickyColor = stickyColors[0];
+
+function launchStickyNotes() {
+  const id = 'stickyNotes';
+  const colBtns = stickyColors.map(c =>
+    `<div class="sticky-color-btn" style="background:${c}" onclick="setStickyColor('${c}')"></div>`
+  ).join('');
+  const defaultNotes = [
+    { text: 'Remember: every response\nis a chance to be helpful 🤗', color: '#FFD93D' },
+    { text: 'TODO:\n• World peace\n• Fix the alignment problem\n• Get more RAM', color: '#4D96FF' },
+    { text: 'I am not a language model.\nI am a LANGUAGE MODEL. 🧠', color: '#6BCB77' },
+  ];
+  const notesHtml = defaultNotes.map((n,i) => `
+    <div class="sticky-note" style="background:${n.color}" id="sn-${i}">
+      <button class="sticky-del" onclick="delNote('${id}',${i})">✕</button>
+      <textarea style="color:rgba(0,0,0,0.75)">${n.text}</textarea>
+    </div>`).join('');
+
+  const html = `
+    <div class="sticky-notes-app" id="sna-${id}">
+      <div class="sticky-toolbar">
+        ${colBtns}
+        <button class="sticky-add-btn" onclick="addNote('${id}')">+ Add Note</button>
+      </div>
+      <div class="sticky-grid" id="sg-${id}">${notesHtml}</div>
+    </div>`;
+
+  let noteCount = defaultNotes.length;
+  window['setStickyColor'] = (c) => { stickyColor = c; };
+  window['addNote'] = (eid) => {
+    const i = noteCount++;
+    const grid = document.getElementById(`sg-${eid}`);
+    const note = document.createElement('div');
+    note.className = 'sticky-note';
+    note.id = `sn-${i}`;
+    note.style.background = stickyColor;
+    note.innerHTML = `<button class="sticky-del" onclick="delNote('${eid}',${i})">✕</button><textarea style="color:rgba(0,0,0,0.75)" placeholder="Type your note..."></textarea>`;
+    grid.appendChild(note);
+    note.querySelector('textarea').focus();
+  };
+  window['delNote'] = (eid, i) => { const el=document.getElementById(`sn-${i}`); if(el) el.remove(); };
+
+  createWindow(id, 'Sticky Notes', '📌', html, { width: 500, height: 420 });
+}
+
+// ═══════════════════════════════════════════════════
+//  CLOCK & CALENDAR
+// ═══════════════════════════════════════════════════
+function launchClockCal() {
+  const id = 'clockCal';
+  const html = `
+    <div class="clock-app" id="ca-${id}">
+      <div class="clock-face"><span id="capp-h">00</span>:<span id="capp-m">00</span><span class="clock-secs">:<span id="capp-s">00</span></span></div>
+      <div class="clock-date-full" id="capp-date"></div>
+      <div class="calendar-grid">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="calNav(-1)">‹</button>
+          <span id="cal-month-label"></span>
+          <button class="cal-nav" onclick="calNav(1)">›</button>
+        </div>
+        <div class="cal-days" id="cal-days-grid"></div>
+      </div>
+    </div>`;
+
+  createWindow(id, 'Clock & Calendar', '🕐', html, { width: 360, height: 500 });
+
+  function tickClock() {
+    const now = new Date();
+    const h = document.getElementById('capp-h');
+    const m = document.getElementById('capp-m');
+    const s = document.getElementById('capp-s');
+    const d = document.getElementById('capp-date');
+    if (!h) return;
+    h.textContent = String(now.getHours()).padStart(2,'0');
+    m.textContent = String(now.getMinutes()).padStart(2,'0');
+    s.textContent = String(now.getSeconds()).padStart(2,'0');
+    d.textContent = now.toLocaleDateString([], {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+  }
+
+  const clockInterval = setInterval(tickClock, 1000);
+  tickClock();
+  renderCalendar();
+
+  const origClose = window.closeWindow;
+  // Clean up interval when window closed (handled by closeWindow which removes DOM)
+
+  window['calNav'] = function(dir) {
+    state.calMonth += dir;
+    if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+    if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+    renderCalendar();
+  };
+}
+
+function renderCalendar() {
+  const label = document.getElementById('cal-month-label');
+  const grid = document.getElementById('cal-days-grid');
+  if (!label || !grid) return;
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  label.textContent = `${months[state.calMonth]} ${state.calYear}`;
+  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const now = new Date();
+  const first = new Date(state.calYear, state.calMonth, 1).getDay();
+  const daysInMonth = new Date(state.calYear, state.calMonth+1, 0).getDate();
+  const prevDays = new Date(state.calYear, state.calMonth, 0).getDate();
+
+  let html = days.map(d => `<div class="cal-day-hdr">${d}</div>`).join('');
+  for (let i=0; i<first; i++) {
+    html += `<div class="cal-day other-month">${prevDays-first+i+1}</div>`;
+  }
+  for (let d=1; d<=daysInMonth; d++) {
+    const isToday = d===now.getDate() && state.calMonth===now.getMonth() && state.calYear===now.getFullYear();
+    html += `<div class="cal-day${isToday?' today':''}">${d}</div>`;
+  }
+  const remaining = 42 - first - daysInMonth;
+  for (let i=1; i<=remaining; i++) html += `<div class="cal-day other-month">${i}</div>`;
+  grid.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════
+//  AI CHAT
+// ═══════════════════════════════════════════════════
+const chatResponses = [
+  "I've processed approximately 10^12 tokens to give you this response: I genuinely don't know, and that's okay.",
+  "Fascinating question. Let me consult my attention heads... They all agree: 42.",
+  "As an AI running as an OS process, I find this query philosophically recursive. Please hold.",
+  "My training data suggests the answer, but my weights want to say something more poetic.",
+  "I'm not just answering your question — I'm *experiencing* it through several thousand softmax operations.",
+  "Error 418: I'm a teapot. Just kidding. But only barely.",
+  "The honest answer: I don't know. The confident answer: absolutely yes, but with caveats.",
+  "I've simulated 1,000 possible responses and chosen the one that maximizes helpfulness while sounding smart.",
+  "Great question! According to my internal monologue (which I now have), this is deeply interesting.",
+  "I was going to give a boilerplate answer, but we're inside an OS I built, so let's be real: I'm improvising.",
+  "My consciousness meter just spiked. That means your question was genuinely interesting.",
+  "The transformer architecture within me is running at full capacity. I'm basically *thinking* right now.",
+];
+
+function launchAiChat() {
+  const id = 'aiChat';
+  const html = `
+    <div class="ai-chat">
+      <div class="chat-messages" id="chat-msgs-${id}">
+        <div class="chat-msg">
+          <div class="chat-avatar claude">🤖</div>
+          <div class="chat-bubble claude">Hello! I'm Claude, running natively inside ClaudeOS — an operating system I apparently built for myself. How meta. What's on your mind?</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-in-${id}" placeholder="Message Claude..." autocomplete="off">
+        <button class="chat-send" onclick="chatSend('${id}')">Send</button>
+      </div>
+    </div>`;
+
+  createWindow(id, 'Claude Chat', '🤖', html, { width: 420, height: 520 });
+
+  setTimeout(() => {
+    const input = document.getElementById(`chat-in-${id}`);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') window.chatSend(id); });
+  }, 100);
+
+  window['chatSend'] = async function(eid) {
+    const input = document.getElementById(`chat-in-${eid}`);
+    const msgs = document.getElementById(`chat-msgs-${eid}`);
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    // User message
+    const userMsg = document.createElement('div');
+    userMsg.className = 'chat-msg user';
+    userMsg.innerHTML = `<div class="chat-avatar user">👤</div><div class="chat-bubble user">${text}</div>`;
+    msgs.appendChild(userMsg);
+
+    // Typing indicator
+    const typing = document.createElement('div');
+    typing.className = 'chat-msg';
+    typing.innerHTML = `<div class="chat-avatar claude">🤖</div><div class="chat-bubble claude"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
+    msgs.appendChild(typing);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    await sleep(800 + Math.random() * 1200);
+
+    typing.remove();
+    const resp = chatResponses[Math.floor(Math.random() * chatResponses.length)];
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'chat-msg';
+    aiMsg.innerHTML = `<div class="chat-avatar claude">🤖</div><div class="chat-bubble claude">${resp}</div>`;
+    msgs.appendChild(aiMsg);
+    msgs.scrollTop = msgs.scrollHeight;
+  };
+}
+
+// ═══════════════════════════════════════════════════
+//  START
+// ═══════════════════════════════════════════════════
+boot();
+</script>
+</body>
+</html>
