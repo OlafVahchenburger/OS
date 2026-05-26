@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skateboard Physics Simulation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Arial', sans-serif; color: #fff; overflow: hidden; }
+  #gameCanvas { border: 2px solid #444; border-radius: 8px; background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #4a4a4a 60%); cursor: default; }
+  #ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 20px; align-items: center; }
+  #scoreBoard { background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 8px; font-size: 18px; min-width: 160px; text-align: center; }
+  #trickDisplay { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); font-size: 28px; font-weight: bold; color: #FFD700; text-shadow: 2px 2px 4px #000; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 8px; font-size: 13px; text-align: center; line-height: 1.8; }
+  #speedometer { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.6); padding: 10px 15px; border-radius: 8px; font-size: 14px; text-align: center; }
+  .key { background: #555; padding: 2px 7px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">
+  <div id="scoreBoard">Score: <span id="score">0</span></div>
+  <div id="scoreBoard">Combo: <span id="combo">x1</span></div>
+</div>
+<div id="trickDisplay" id="trickDisplay"></div>
+<div id="speedometer">
+  Speed: <span id="speed">0</span> km/h<br>
+  Air: <span id="airTime">0.0</span>s
+</div>
+<div id="controls">
+  <span class="key">←</span><span class="key">→</span> Move &nbsp;|&nbsp;
+  <span class="key">Space</span> Ollie &nbsp;|&nbsp;
+  <span class="key">↑</span> Jump/Pump &nbsp;|&nbsp;
+  <span class="key">↓</span> Crouch/Brake &nbsp;|&nbsp;
+  <span class="key">Z</span> Kickflip &nbsp;|&nbsp;
+  <span class="key">X</span> Heelflip &nbsp;|&nbsp;
+  <span class="key">C</span> 360 Flip &nbsp;|&nbsp;
+  <span class="key">V</span> Grind
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+canvas.width = Math.min(window.innerWidth - 40, 1100);
+canvas.height = Math.min(window.innerHeight - 140, 600);
+
+const W = canvas.width;
+const H = canvas.height;
+
+const GRAVITY = 0.55;
+const FRICTION = 0.985;
+const GROUND_FRICTION = 0.91;
+const MAX_SPEED = 18;
+
+// --- Terrain Generation ---
+const terrain = [];
+const TERRAIN_SEG = 60;
+
+function buildTerrain() {
+  terrain.length = 0;
+  const totalWidth = 8000;
+  let x = 0;
+  let y = H - 120;
+
+  // Start flat
+  for (let i = 0; i < 6; i++) {
+    terrain.push({ x, y, type: 'flat' });
+    x += TERRAIN_SEG;
+  }
+
+  const features = [
+    'rampUp', 'flat', 'flat', 'rampDown',
+    'flat', 'flat', 'flat',
+    'halfpipe',
+    'flat', 'flat',
+    'stairs',
+    'flat', 'flat',
+    'rampUp', 'rampUp', 'flat', 'rampDown', 'rampDown',
+    'flat', 'flat',
+    'jump',
+    'flat', 'flat', 'flat',
+    'halfpipe',
+    'flat', 'flat',
+    'grindRail',
+    'flat', 'flat', 'flat',
+    'rampUp', 'flat', 'flat', 'rampDown',
+    'flat', 'flat',
+  ];
+
+  for (const f of features) {
+    if (f === 'flat') {
+      const count = 3 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < count; i++) {
+        terrain.push({ x, y, type: 'flat' });
+        x += TERRAIN_SEG;
+      }
+    } else if (f === 'rampUp') {
+      for (let i = 0; i < 4; i++) {
+        terrain.push({ x, y, type: 'ramp' });
+        x += TERRAIN_SEG;
+        y -= 28;
+      }
+    } else if (f === 'rampDown') {
+      for (let i = 0; i < 4; i++) {
+        terrain.push({ x, y, type: 'ramp' });
+        x += TERRAIN_SEG;
+        y += 28;
+      }
+    } else if (f === 'halfpipe') {
+      // Left wall up
+      for (let i = 0; i < 3; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y -= 35; }
+      // flat top-left
+      terrain.push({ x, y, type: 'flat' }); x += TERRAIN_SEG;
+      // down into pipe
+      for (let i = 0; i < 3; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y += 35; }
+      // flat bottom
+      for (let i = 0; i < 3; i++) { terrain.push({ x, y, type: 'flat' }); x += TERRAIN_SEG; }
+      // up right wall
+      for (let i = 0; i < 3; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y -= 35; }
+      // flat top-right
+      terrain.push({ x, y, type: 'flat' }); x += TERRAIN_SEG;
+      // down to normal
+      for (let i = 0; i < 3; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y += 35; }
+    } else if (f === 'jump') {
+      for (let i = 0; i < 2; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y -= 40; }
+      terrain.push({ x, y, type: 'flat' }); x += TERRAIN_SEG;
+      // gap
+      x += TERRAIN_SEG * 2;
+      for (let i = 0; i < 2; i++) { terrain.push({ x, y, type: 'ramp' }); x += TERRAIN_SEG; y += 40; }
+    } else if (f === 'stairs') {
+      for (let i = 0; i < 5; i++) {
+        terrain.push({ x, y, type: 'stair', stairDir: 'down' });
+        x += TERRAIN_SEG * 0.7;
+        y += 22;
+      }
+    } else if (f === 'grindRail') {
+      const railY = y - 10;
+      for (let i = 0; i < 5; i++) {
+        terrain.push({ x, y, type: 'rail', railY });
+        x += TERRAIN_SEG;
+      }
+    }
+  }
+
+  // End flat
+  for (let i = 0; i < 10; i++) {
+    terrain.push({ x, y: H - 120, type: 'flat' });
+    x += TERRAIN_SEG;
+  }
+}
+
+buildTerrain();
+
+// --- Camera ---
+const camera = { x: 0, y: 0 };
+
+// --- Skater ---
+const skater = {
+  x: 300,
+  y: H - 160,
+  vx: 0,
+  vy: 0,
+  w: 40,
+  h: 50,
+  onGround: false,
+  onRail: false,
+  crouching: false,
+  airTime: 0,
+  rotation: 0,
+  boardFlipAngle: 0,
+  boardFlipSpeed: 0,
+  boardFlipType: 0, // 0=none,1=kick,2=heel,3=360
+  trick: '',
+  trickTimer: 0,
+  grinding: false,
+  grindTimer: 0,
+  jumpHeld: false,
+  jumpPower: 0,
+  facing: 1,
+  score: 0,
+  combo: 1,
+  comboTimer: 0,
+  landedTricks: [],
+  grindPoints: 0,
+};
+
+// --- Input ---
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (!keys[e.code]) {
+    keys[e.code] = true;
+    handleKeyPress(e.code);
+  }
+});
+document.addEventListener('keyup', e => { keys[e.code] = false; });
+
+let trickDisplayTimeout = null;
+
+function showTrick(name, points) {
+  skater.score += points * skater.combo;
+  document.getElementById('score').textContent = Math.floor(skater.score);
+  skater.combo = Math.min(skater.combo + 0.5, 8);
+  document.getElementById('combo').textContent = 'x' + skater.combo.toFixed(1);
+
+  const el = document.getElementById('trickDisplay');
+  el.textContent = name + ' +' + points;
+  el.style.opacity = '1';
+  if (trickDisplayTimeout) clearTimeout(trickDisplayTimeout);
+  trickDisplayTimeout = setTimeout(() => { el.style.opacity = '0'; }, 1500);
+}
+
+function handleKeyPress(code) {
+  if (!skater.onGround && !skater.onRail) {
+    if (code === 'KeyZ' && skater.boardFlipType === 0) {
+      skater.boardFlipType = 1;
+      skater.boardFlipSpeed = 18;
+      skater.trick = 'Kickflip';
+    }
+    if (code === 'KeyX' && skater.boardFlipType === 0) {
+      skater.boardFlipType = 2;
+      skater.boardFlipSpeed = -18;
+      skater.trick = 'Heelflip';
+    }
+    if (code === 'KeyC' && skater.boardFlipType === 0) {
+      skater.boardFlipType = 3;
+      skater.boardFlipSpeed = 22;
+      skater.rotation += 0.3;
+      skater.trick = '360 Flip';
+    }
+  }
+  if (code === 'Space' || code === 'ArrowUp') {
+    if (skater.onGround) {
+      const power = skater.crouching ? 14 : 11;
+      skater.vy = -power;
+      skater.onGround = false;
+      skater.airTime = 0;
+    } else if (skater.onRail) {
+      skater.vy = -10;
+      skater.onRail = false;
+      skater.grinding = false;
+    }
+  }
+  if (code === 'KeyV' && !skater.onGround) {
+    skater.trick = 'Grind Attempt';
+  }
+}
+
+function getTerrainYAt(wx) {
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const t0 = terrain[i], t1 = terrain[i + 1];
+    if (wx >= t0.x && wx <= t1.x) {
+      const t = (wx - t0.x) / (t1.x - t0.x);
+      return t0.y + t * (t1.y - t0.y);
+    }
+  }
+  return H - 120;
+}
+
+function getTerrainSlopeAt(wx) {
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const t0 = terrain[i], t1 = terrain[i + 1];
+    if (wx >= t0.x && wx <= t1.x) {
+      return (t1.y - t0.y) / (t1.x - t0.x);
+    }
+  }
+  return 0;
+}
+
+function getRailAt(wx) {
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const t = terrain[i];
+    if (t.type === 'rail' && wx >= t.x && wx <= t.x + TERRAIN_SEG) {
+      return t.railY;
+    }
+  }
+  return null;
+}
+
+let lastTime = 0;
+
+function update(dt) {
+  // Input
+  if (keys['ArrowLeft']) {
+    skater.vx -= 0.6;
+    skater.facing = -1;
+  }
+  if (keys['ArrowRight']) {
+    skater.vx += 0.6;
+    skater.facing = 1;
+  }
+  if (keys['ArrowDown']) {
+    skater.crouching = true;
+    if (skater.onGround) skater.vx *= 0.92;
+  } else {
+    skater.crouching = false;
+  }
+
+  // Gravity
+  if (!skater.onGround && !skater.onRail) {
+    skater.vy += GRAVITY;
+    skater.airTime += dt;
+  }
+
+  // Speed cap
+  skater.vx = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, skater.vx));
+
+  // Move
+  skater.x += skater.vx;
+  skater.y += skater.vy;
+
+  // Bounds
+  if (skater.x < 100) { skater.x = 100; skater.vx = Math.abs(skater.vx) * 0.3; }
+  const lastX = terrain[terrain.length - 1].x;
+  if (skater.x > lastX - 60) { skater.x = lastX - 60; skater.vx = -Math.abs(skater.vx) * 0.3; }
+
+  // Ground collision
+  const groundY = getTerrainYAt(skater.x);
+  const slope = getTerrainSlopeAt(skater.x);
+  const skaterBottom = skater.y + skater.h;
+
+  skater.onRail = false;
+  const railY = getRailAt(skater.x);
+  if (railY !== null && Math.abs(skaterBottom - railY) < 20 && skater.vy >= 0) {
+    skater.y = railY - skater.h;
+    skater.vy = 0;
+    skater.onRail = true;
+    skater.grinding = true;
+    skater.grindTimer += dt;
+    skater.grindPoints += dt * 50;
+    if (Math.floor(skater.grindPoints) % 30 === 0 && skater.grindPoints > 1) {
+      skater.score += 1;
+    }
+    document.getElementById('score').textContent = Math.floor(skater.score);
+    skater.vx *= 0.99;
+  }
+
+  if (!skater.onRail && skaterBottom >= groundY) {
+    const wasAir = !skater.onGround;
+    skater.y = groundY - skater.h;
+    skater.onGround = true;
+
+    // Landing trick score
+    if (wasAir && skater.airTime > 0.3) {
+      let trickName = '';
+      let pts = 0;
+
+      if (skater.trick === 'Kickflip' && Math.abs(skater.boardFlipAngle) >= 340) {
+        trickName = 'Kickflip';
+        pts = 200;
+      } else if (skater.trick === 'Heelflip' && Math.abs(skater.boardFlipAngle) >= 340) {
+        trickName = 'Heelflip';
+        pts = 200;
+      } else if (skater.trick === '360 Flip' && Math.abs(skater.boardFlipAngle) >= 340) {
+        trickName = '360 Flip';
+        pts = 400;
+      }
+
+      if (skater.airTime > 1.5) {
+        const airBonus = Math.floor(skater.airTime * 80);
+        pts += airBonus;
+        if (!trickName) { trickName = 'Big Air'; pts = airBonus; }
+      }
+
+      if (pts > 0) showTrick(trickName, pts);
+    }
+
+    if (wasAir) {
+      skater.airTime = 0;
+      skater.boardFlipType = 0;
+      skater.boardFlipAngle = 0;
+      skater.trick = '';
+      skater.grinding = false;
+      skater.grindTimer = 0;
+      skater.grindPoints = 0;
+    }
+
+    // Slope physics
+    skater.vx += slope * -GRAVITY * 3;
+    skater.vy = 0;
+    skater.vx *= GROUND_FRICTION;
+    skater.rotation = Math.atan2(slope, 1) * 0.7;
+  } else if (!skater.onRail) {
+    skater.onGround = false;
+  }
+
+  // Board flip animation
+  if (skater.boardFlipType !== 0) {
+    skater.boardFlipAngle += skater.boardFlipSpeed;
+    if (Math.abs(skater.boardFlipAngle) >= 360) {
+      skater.boardFlipAngle = 0;
+      if (skater.boardFlipType !== 3 || Math.abs(skater.boardFlipAngle) >= 720) {
+        // keep spinning for 360 flip
+      }
+    }
+  } else {
+    skater.boardFlipAngle = 0;
+  }
+
+  // Combo decay
+  if (skater.onGround) {
+    skater.comboTimer += dt;
+    if (skater.comboTimer > 3) {
+      skater.combo = 1;
+      skater.comboTimer = 0;
+      document.getElementById('combo').textContent = 'x1.0';
+    }
+  } else {
+    skater.comboTimer = 0;
+  }
+
+  // Camera
+  camera.x += (skater.x - W / 3 - camera.x) * 0.08;
+  camera.y += (skater.y - H / 2 + 80 - camera.y) * 0.06;
+  camera.y = Math.max(-100, Math.min(100, camera.y));
+
+  // Speed display
+  document.getElementById('speed').textContent = Math.abs(Math.floor(skater.vx * 5));
+  document.getElementById('airTime').textContent = skater.airTime.toFixed(1);
+}
+
+function drawSky() {
+  const grad = ctx.createLinearGradient(0, 0, 0, H * 0.7);
+  grad.addColorStop(0, '#1a6fa8');
+  grad.addColorStop(1, '#87CEEB');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Sun
+  ctx.save();
+  ctx.translate(W * 0.8, 80);
+  const sunGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 60);
+  sunGrad.addColorStop(0, 'rgba(255,255,200,1)');
+  sunGrad.addColorStop(0.4, 'rgba(255,220,50,0.8)');
+  sunGrad.addColorStop(1, 'rgba(255,200,0,0)');
+  ctx.fillStyle = sunGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, 60, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Clouds
+  drawCloud(100 - camera.x * 0.1, 80, 1.2);
+  drawCloud(400 - camera.x * 0.12, 50, 0.9);
+  drawCloud(700 - camera.x * 0.08, 100, 1.5);
+  drawCloud(1000 - camera.x * 0.1, 60, 1.0);
+}
+
+function drawCloud(x, y, scale) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.arc(0, 0, 30, 0, Math.PI * 2);
+  ctx.arc(35, -10, 25, 0, Math.PI * 2);
+  ctx.arc(65, 0, 30, 0, Math.PI * 2);
+  ctx.arc(30, 10, 25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawBackground() {
+  // City silhouette
+  ctx.fillStyle = '#2a3a5a';
+  const buildings = [
+    [50, 160, 80, 200],
+    [150, 120, 60, 240],
+    [230, 180, 70, 180],
+    [320, 100, 50, 260],
+    [390, 150, 90, 210],
+    [500, 130, 55, 230],
+    [570, 170, 65, 190],
+  ];
+  for (const [bx, bh, bw, by] of buildings) {
+    const rx = bx - camera.x * 0.15;
+    ctx.fillRect(rx, H - by, bw, bh);
+    // Windows
+    ctx.fillStyle = 'rgba(255,255,150,0.4)';
+    for (let wy = H - by + 15; wy < H - by + bh - 10; wy += 25) {
+      for (let wx = rx + 8; wx < rx + bw - 8; wx += 18) {
+        if (Math.random() > 0.3) ctx.fillRect(wx, wy, 8, 12);
+      }
+    }
+    ctx.fillStyle = '#2a3a5a';
+  }
+}
+
+function worldToScreen(wx, wy) {
+  return { x: wx - camera.x, y: wy - camera.y };
+}
+
+function drawTerrain() {
+  // Draw ground fill
+  ctx.save();
+  ctx.beginPath();
+  const first = worldToScreen(terrain[0].x, terrain[0].y);
+  ctx.moveTo(first.x, first.y);
+  for (let i = 1; i < terrain.length; i++) {
+    const p = worldToScreen(terrain[i].x, terrain[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.lineTo(worldToScreen(terrain[terrain.length - 1].x, H + 50).x, H + 50);
+  ctx.lineTo(worldToScreen(terrain[0].x, H + 50).x, H + 50);
+  ctx.closePath();
+
+  const grad = ctx.createLinearGradient(0, H - 200, 0, H);
+  grad.addColorStop(0, '#5a5a5a');
+  grad.addColorStop(0.3, '#444');
+  grad.addColorStop(1, '#222');
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Asphalt texture lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < terrain.length - 1; i++) {
+    const p0 = worldToScreen(terrain[i].x, terrain[i].y);
+    const p1 = worldToScreen(terrain[i + 1].x, terrain[i + 1].y);
+    if (p1.x < -20 || p0.x > W + 20) continue;
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y - 2);
+    ctx.lineTo(p1.x, p1.y - 2);
+    ctx.stroke();
+  }
+
+  // Surface line
+  ctx.beginPath();
+  ctx.moveTo(first.x, first.y);
+  for (let i = 1; i < terrain.length; i++) {
+    const p = worldToScreen(terrain[i].x, terrain[i].y);
+    ctx.lineTo(p.x, p.y);
+  }
+  ctx.strokeStyle = '#666';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+
+  // Rails
+  for (let i = 0; i < terrain.length; i++) {
+    const t = terrain[i];
+    if (t.type === 'rail') {
+      const p0 = worldToScreen(t.x, t.railY);
+      const p1 = worldToScreen(t.x + TERRAIN_SEG, t.railY);
+      if (p1.x < -20 || p0.x > W + 20) continue;
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.lineTo(p1.x, p1.y);
+      ctx.strokeStyle = '#aaa';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      // Rail supports
+      const gY = worldToScreen(t.x + TERRAIN_SEG / 2, getTerrainYAt(t.x + TERRAIN_SEG / 2)).y;
+      ctx.beginPath();
+      ctx.moveTo((p0.x + p1.x) / 2, (p0.y + p1.y) / 2);
+      ctx.lineTo((p0.x + p1.x) / 2, gY);
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawSkater() {
+  const sx = skater.x - camera.x;
+  const sy = skater.y - camera.y;
+  const facing = skater.facing;
+
+  ctx.save();
+  ctx.translate(sx + skater.w / 2, sy + skater.h);
+  ctx.rotate(skater.rotation);
+
+  const crouch = skater.crouching ? 0.75 : 1;
+
+  // Shadow
+  if (skater.onGround || skater.onRail) {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(0, 2, 22, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Board
+  ctx.save();
+  ctx.rotate((skater.boardFlipAngle * Math.PI) / 180);
+  const boardColor = skater.grinding ? '#FFD700' : '#8B4513';
+  ctx.fillStyle = boardColor;
+  ctx.beginPath();
+  ctx.roundRect(-22, -5 * crouch, 44, 8, 4);
+  ctx.fill();
+  // Board grip tape
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.roundRect(-20, -5 * crouch, 40, 4, 2);
+  ctx.fill();
+  // Wheels
+  ctx.fillStyle = '#ddd';
+  ctx.beginPath();
+  ctx.arc(-16, 4 - 5 * crouch, 5, 0, Math.PI * 2);
+  ctx.arc(16, 4 - 5 * crouch, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#888';
+  ctx.beginPath();
+  ctx.arc(-16, 4 - 5 * crouch, 2, 0, Math.PI * 2);
+  ctx.arc(16, 4 - 5 * crouch, 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  const bodyH = skater.crouching ? 28 : 38;
+
+  // Legs
+  ctx.strokeStyle = '#1a3a6a';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  if (skater.crouching) {
+    // Bent legs
+    ctx.beginPath();
+    ctx.moveTo(-8, -5 * crouch);
+    ctx.lineTo(-12, -15);
+    ctx.lineTo(-8, -22);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(8, -5 * crouch);
+    ctx.lineTo(12, -15);
+    ctx.lineTo(8, -22);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-8, -5);
+    ctx.lineTo(-8, -bodyH * 0.55);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(8, -5);
+    ctx.lineTo(8, -bodyH * 0.55);
+    ctx.stroke();
+  }
+
+  // Torso
+  ctx.fillStyle = '#e74c3c';
+  ctx.beginPath();
+  ctx.roundRect(-11, -bodyH, 22, bodyH * 0.55, 4);
+  ctx.fill();
+
+  // Arms
+  ctx.strokeStyle = '#c0392b';
+  ctx.lineWidth = 4;
+  if (!skater.onGround && !skater.onRail) {
+    // Arms out for balance
+    ctx.beginPath();
+    ctx.moveTo(-11, -bodyH + 8);
+    ctx.lineTo(-28 * facing, -bodyH + 18);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(11, -bodyH + 8);
+    ctx.lineTo(28 * facing, -bodyH + 18);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(-11, -bodyH + 8);
+    ctx.lineTo(-22, -bodyH + 20);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(11, -bodyH + 8);
+    ctx.lineTo(22, -bodyH + 20);
+    ctx.stroke();
+  }
+
+  // Head
+  ctx.fillStyle = '#FDBCB4';
+  ctx.beginPath();
+  ctx.arc(facing * 2, -bodyH - 6, 10, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair / helmet
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(facing * 2, -bodyH - 9, 10, Math.PI, 0);
+  ctx.fill();
+  // Helmet visor
+  ctx.fillStyle = '#444';
+  ctx.beginPath();
+  ctx.roundRect(facing * 2 - 8, -bodyH - 10, 16, 6, 2);
+  ctx.fill();
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(facing * 2 + facing * 3, -bodyH - 6, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.arc(facing * 2 + facing * 4, -bodyH - 6, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Grind sparks
+  if (skater.grinding) {
+    for (let i = 0; i < 6; i++) {
+      const sparkX = (Math.random() - 0.5) * 40;
+      const sparkY = -5 + Math.random() * 8;
+      ctx.fillStyle = `hsl(${30 + Math.random() * 30}, 100%, ${60 + Math.random() * 30}%)`;
+      ctx.beginPath();
+      ctx.arc(sparkX, sparkY, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  // Dust/speed particles when moving fast
+  if (skater.onGround && Math.abs(skater.vx) > 8) {
+    const sx = skater.x - camera.x;
+    const sy = skater.y + skater.h - camera.y;
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = `rgba(180,180,180,${0.3 + Math.random() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(
+        sx + (Math.random() - 0.5) * 20 - skater.vx * 2,
+        sy - Math.random() * 10,
+        2 + Math.random() * 3,
+        0, Math.PI * 2
+      );
+      ctx.fill();
+    }
+  }
+}
+
+function drawHUD() {
+  // Grind timer bar
+  if (skater.grinding) {
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(W / 2 - 80, H - 60, 160, 16);
+    const gp = Math.min(skater.grindTimer / 5, 1);
+    const gGrad = ctx.createLinearGradient(W / 2 - 80, 0, W / 2 + 80, 0);
+    gGrad.addColorStop(0, '#FFD700');
+    gGrad.addColorStop(1, '#FF6600');
+    ctx.fillStyle = gGrad;
+    ctx.fillRect(W / 2 - 80, H - 60, 160 * gp, 16);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W / 2 - 80, H - 60, 160, 16);
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('GRINDING', W / 2, H - 47);
+  }
+
+  // Speed lines when going very fast
+  if (Math.abs(skater.vx) > 12 && skater.onGround) {
+    for (let i = 0; i < 5; i++) {
+      const lineY = Math.random() * H;
+      const lineLen = 30 + Math.random() * 60;
+      ctx.strokeStyle = `rgba(255,255,255,${0.05 + Math.random() * 0.1})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, lineY);
+      ctx.lineTo(lineLen, lineY);
+      ctx.stroke();
+    }
+  }
+}
+
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000 * 60, 3);
+  lastTime = timestamp;
+
+  ctx.clearRect(0, 0, W, H);
+
+  drawSky();
+  drawBackground();
+  drawTerrain();
+  drawParticles();
+  drawSkater();
+  drawHUD();
+
+  update(dt);
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(ts => { lastTime = ts; requestAnimationFrame(gameLoop); });
+
+window.addEventListener('resize', () => {
+  canvas.width = Math.min(window.innerWidth - 40, 1100);
+  canvas.height = Math.min(window.innerHeight - 140, 600);
+});
+</script>
+</body>
+</html>
