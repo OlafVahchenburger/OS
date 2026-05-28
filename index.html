@@ -1,1811 +1,1161 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClaudeOS v1.0</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DroidOS</title>
 <style>
+/* ══════════════════ RESET & BASE ══════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 :root {
-  --bg-dark: #050a1a;
-  --bg-mid: #0a1628;
-  --accent-blue: #00d4ff;
-  --accent-purple: #7b2fff;
-  --accent-cyan: #00ffcc;
-  --accent-pink: #ff00aa;
-  --glass-bg: rgba(10, 22, 40, 0.7);
-  --glass-border: rgba(0, 212, 255, 0.2);
-  --glass-blur: blur(20px);
-  --text-primary: #e0f0ff;
-  --text-secondary: #7090b0;
-  --taskbar-h: 48px;
+  --accent: #4285f4;
+  --accent2: #34a853;
+  --bg-dark: #121212;
+  --surface: #1e1e1e;
+  --surface2: #2a2a2a;
+  --text: #e8eaed;
+  --text2: #9aa0a6;
+  --red: #ea4335;
+  --yellow: #fbbc04;
+  --green: #34a853;
+  --nav-h: 48px;
+  --status-h: 28px;
 }
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { width: 100vw; height: 100vh; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg-dark); color: var(--text-primary); user-select: none; }
+html, body { width:100%; height:100%; overflow:hidden; font-family:'Roboto',sans-serif; background:#000; color:var(--text); }
+button { border:none; background:none; cursor:pointer; color:inherit; font-family:inherit; }
+input, textarea { outline:none; border:none; font-family:inherit; }
 
-/* ═══════════════ BOOT SCREEN ═══════════════ */
-#boot-screen {
-  position: fixed; inset: 0; background: #000;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  z-index: 9999; transition: opacity 0.8s ease;
+/* ══════════════════ BOOT ══════════════════ */
+#boot {
+  position:fixed; inset:0; background:#000; z-index:9999;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  transition:opacity 1s ease;
 }
-#boot-screen.fade-out { opacity: 0; pointer-events: none; }
+#boot.hide { opacity:0; pointer-events:none; }
 .boot-logo {
-  font-size: 72px; font-weight: 900; letter-spacing: 8px;
-  background: linear-gradient(135deg, #00d4ff, #7b2fff, #00ffcc);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-  animation: bootPulse 2s ease-in-out infinite;
-  text-shadow: none; margin-bottom: 8px;
+  font-size:56px; font-weight:900; letter-spacing:4px;
+  background:linear-gradient(135deg,#4285f4,#34a853,#fbbc04,#ea4335);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+  margin-bottom:8px;
 }
-.boot-sub { font-size: 14px; letter-spacing: 6px; color: #7090b0; margin-bottom: 60px; }
-.boot-bar-wrap { width: 320px; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-.boot-bar { height: 100%; width: 0; background: linear-gradient(90deg, #00d4ff, #7b2fff); border-radius: 2px; transition: width 0.3s ease; box-shadow: 0 0 12px #00d4ff; }
-.boot-msg { font-size: 11px; color: #304060; margin-top: 16px; letter-spacing: 2px; }
-@keyframes bootPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.3)} }
+.boot-sub { font-size:12px; color:#555; letter-spacing:6px; margin-bottom:60px; }
+.boot-spinner { width:36px; height:36px; border:3px solid #222; border-top-color:#4285f4; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
 
-/* ═══════════════ LOGIN SCREEN ═══════════════ */
-#login-screen {
-  position: fixed; inset: 0;
-  background: radial-gradient(ellipse at 50% 40%, #0a1628 0%, #050a1a 100%);
-  display: none; flex-direction: column; align-items: center; justify-content: center;
-  z-index: 9000;
+/* ══════════════════ LOCK SCREEN ══════════════════ */
+#lock {
+  position:fixed; inset:0; z-index:900;
+  background:linear-gradient(160deg,#0d1117 0%,#1a1a2e 40%,#16213e 70%,#0f3460 100%);
+  display:flex; flex-direction:column; align-items:center;
+  transition:transform 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.5s ease;
+  overflow:hidden;
 }
-#login-screen.active { display: flex; }
-.login-card {
-  background: rgba(10,22,40,0.8); backdrop-filter: blur(30px);
-  border: 1px solid rgba(0,212,255,0.25); border-radius: 20px;
-  padding: 48px 56px; width: 380px; text-align: center;
-  box-shadow: 0 0 60px rgba(0,212,255,0.1), 0 30px 60px rgba(0,0,0,0.5);
-}
-.login-avatar {
-  width: 80px; height: 80px; border-radius: 50%;
-  background: linear-gradient(135deg, #00d4ff, #7b2fff);
-  margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
-  font-size: 36px; box-shadow: 0 0 30px rgba(0,212,255,0.4);
-  animation: avatarGlow 3s ease-in-out infinite;
-}
-@keyframes avatarGlow { 0%,100%{box-shadow:0 0 30px rgba(0,212,255,0.4)} 50%{box-shadow:0 0 50px rgba(123,47,255,0.6)} }
-.login-name { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
-.login-role { font-size: 12px; color: var(--text-secondary); margin-bottom: 32px; letter-spacing: 2px; }
-.login-input {
-  width: 100%; padding: 12px 16px; border-radius: 10px;
-  background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2);
-  color: var(--text-primary); font-size: 14px; outline: none; margin-bottom: 14px;
-  transition: border-color 0.3s, box-shadow 0.3s;
-}
-.login-input:focus { border-color: rgba(0,212,255,0.5); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
-.login-btn {
-  width: 100%; padding: 13px; border-radius: 10px; border: none; cursor: pointer;
-  background: linear-gradient(135deg, #00d4ff, #7b2fff);
-  color: #fff; font-size: 14px; font-weight: 600; letter-spacing: 1px;
-  transition: opacity 0.2s, transform 0.2s; margin-top: 4px;
-}
-.login-btn:hover { opacity: 0.9; transform: translateY(-1px); }
-.login-error { color: #ff4466; font-size: 12px; margin-top: 8px; min-height: 18px; }
+#lock.unlocking { transform:translateY(-100%); opacity:0; }
+.lock-status-bar { width:100%; display:flex; justify-content:space-between; align-items:center; padding:8px 20px; font-size:12px; color:rgba(255,255,255,0.8); z-index:1; }
+.lock-time-wrap { flex:1; display:flex; flex-direction:column; align-items:center; margin-top:60px; z-index:1; }
+.lock-time { font-size:72px; font-weight:200; color:#fff; line-height:1; }
+.lock-date { font-size:16px; color:rgba(255,255,255,0.7); margin-top:8px; }
+.lock-swipe { position:absolute; bottom:80px; width:100%; display:flex; flex-direction:column; align-items:center; z-index:1; animation:swipePulse 2s ease-in-out infinite; cursor:pointer; }
+.lock-swipe-icon { font-size:32px; color:rgba(255,255,255,0.5); }
+.lock-swipe-text { font-size:13px; color:rgba(255,255,255,0.4); margin-top:8px; }
+@keyframes swipePulse { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.lock-pin-wrap { position:absolute; inset:0; background:rgba(0,0,0,0.6); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:2; }
+.lock-pin-wrap.show { display:flex; }
+.lock-pin-dots { display:flex; gap:16px; margin-bottom:32px; }
+.lock-pin-dot { width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.5); transition:background 0.2s; }
+.lock-pin-dot.filled { background:#fff; border-color:#fff; }
+.lock-pin-grid { display:grid; grid-template-columns:repeat(3,72px); gap:12px; }
+.lock-pin-btn { width:72px; height:72px; border-radius:50%; background:rgba(255,255,255,0.1); color:#fff; font-size:24px; font-weight:300; border:1px solid rgba(255,255,255,0.15); transition:background 0.15s; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.lock-pin-btn:active { background:rgba(255,255,255,0.25); }
+.lock-pin-sub { font-size:8px; letter-spacing:2px; color:rgba(255,255,255,0.4); }
+.lock-pin-wrong { animation:shake 0.4s ease; }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
 
-/* ═══════════════ DESKTOP ═══════════════ */
-#desktop {
-  position: fixed; inset: 0; bottom: var(--taskbar-h);
-  display: none; overflow: hidden;
-}
-#desktop.active { display: block; }
-#bg-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* ══════════════════ MAIN OS ══════════════════ */
+#os { position:fixed; inset:0; display:none; flex-direction:column; background:#000; }
+#os.show { display:flex; }
 
-/* Desktop icons */
-.desktop-icons { position: absolute; top: 20px; left: 20px; display: flex; flex-direction: column; gap: 16px; z-index: 10; }
-.desktop-icon {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  cursor: pointer; padding: 8px; border-radius: 10px; width: 72px;
-  transition: background 0.2s;
-}
-.desktop-icon:hover { background: rgba(0,212,255,0.1); }
-.desktop-icon .icon-img { font-size: 32px; filter: drop-shadow(0 0 8px rgba(0,212,255,0.5)); }
-.desktop-icon .icon-label { font-size: 11px; text-align: center; color: #cce8ff; text-shadow: 0 1px 4px #000; }
+/* STATUS BAR */
+#status-bar { height:var(--status-h); background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:space-between; padding:0 16px; font-size:12px; z-index:100; flex-shrink:0; cursor:pointer; }
+.status-left { display:flex; align-items:center; gap:8px; }
+.status-right { display:flex; align-items:center; gap:6px; }
+#status-time { font-weight:500; font-size:13px; }
 
-/* Thought bubbles */
-.thought-bubble {
-  position: absolute; padding: 10px 16px; border-radius: 20px;
-  background: rgba(10,22,40,0.85); backdrop-filter: blur(10px);
-  border: 1px solid rgba(0,212,255,0.3); font-size: 12px; color: #a0d0ff;
-  pointer-events: none; animation: thoughtFloat 8s ease-in-out forwards;
-  white-space: nowrap; max-width: 280px;
-}
-@keyframes thoughtFloat {
-  0%{opacity:0;transform:translateY(20px)} 10%{opacity:1;transform:translateY(0)}
-  80%{opacity:1} 100%{opacity:0;transform:translateY(-30px)}
-}
+/* NOTIFICATION SHADE */
+#notif-shade { position:fixed; top:0; left:0; right:0; z-index:500; background:rgba(18,18,18,0.98); backdrop-filter:blur(20px); transform:translateY(-100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); border-radius:0 0 20px 20px; overflow:hidden; max-height:85vh; display:flex; flex-direction:column; }
+#notif-shade.open { transform:translateY(0); }
+.shade-handle { width:40px; height:4px; background:#555; border-radius:2px; margin:8px auto; }
+.quick-settings { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; padding:12px 16px; border-bottom:1px solid #333; }
+.qs-tile { display:flex; flex-direction:column; align-items:center; gap:4px; background:#2a2a2a; border-radius:12px; padding:12px 8px; cursor:pointer; transition:background 0.2s; border:1px solid transparent; }
+.qs-tile.active { background:#1a3a5c; border-color:#4285f4; }
+.qs-icon { font-size:20px; }
+.qs-label { font-size:9px; color:#9aa0a6; text-align:center; }
+.brightness-row { padding:12px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #333; }
+.notif-header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px 8px; }
+.notif-header span { font-size:13px; color:#9aa0a6; }
+.notif-clear-btn { font-size:12px; color:#4285f4; cursor:pointer; }
+.notif-list { overflow-y:auto; padding:0 12px 16px; flex:1; }
+.notif-card { background:#2a2a2a; border-radius:12px; padding:14px; margin-bottom:8px; display:flex; align-items:flex-start; gap:12px; cursor:pointer; transition:background 0.2s; }
+.notif-app-icon { font-size:28px; flex-shrink:0; }
+.notif-body { flex:1; min-width:0; }
+.notif-app { font-size:11px; color:#9aa0a6; margin-bottom:2px; }
+.notif-title { font-size:14px; font-weight:500; margin-bottom:2px; }
+.notif-text { font-size:12px; color:#9aa0a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.notif-time { font-size:11px; color:#9aa0a6; flex-shrink:0; }
 
-/* ═══════════════ TASKBAR ═══════════════ */
-#taskbar {
-  position: fixed; bottom: 0; left: 0; right: 0; height: var(--taskbar-h);
-  background: rgba(5,10,26,0.9); backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(0,212,255,0.15);
-  display: none; align-items: center; padding: 0 8px; gap: 4px;
-  z-index: 5000;
-}
-#taskbar.active { display: flex; }
-#start-btn {
-  width: 40px; height: 36px; border-radius: 8px; border: none;
-  background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(123,47,255,0.2));
-  border: 1px solid rgba(0,212,255,0.3);
-  cursor: pointer; font-size: 18px; transition: all 0.2s;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-#start-btn:hover { background: linear-gradient(135deg, rgba(0,212,255,0.35), rgba(123,47,255,0.35)); }
-.taskbar-divider { width: 1px; height: 24px; background: rgba(0,212,255,0.15); margin: 0 4px; flex-shrink: 0; }
-#taskbar-apps { display: flex; gap: 4px; flex: 1; overflow: hidden; }
-.taskbar-app-btn {
-  height: 36px; padding: 0 12px; border-radius: 8px; border: none; cursor: pointer;
-  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.15);
-  color: var(--text-primary); font-size: 12px; display: flex; align-items: center; gap: 6px;
-  transition: all 0.2s; white-space: nowrap; max-width: 160px;
-}
-.taskbar-app-btn:hover { background: rgba(0,212,255,0.18); }
-.taskbar-app-btn.active { background: rgba(0,212,255,0.2); border-color: rgba(0,212,255,0.4); }
-.taskbar-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; padding: 0 8px; }
-.sys-icon { font-size: 14px; color: var(--text-secondary); }
-#clock-widget { text-align: right; line-height: 1.3; }
-#clock-time { font-size: 13px; font-weight: 600; }
-#clock-date { font-size: 10px; color: var(--text-secondary); }
-.consciousness-meter { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.consciousness-label { font-size: 9px; color: var(--accent-cyan); letter-spacing: 1px; }
-.consciousness-bar { width: 60px; height: 4px; background: rgba(0,255,204,0.15); border-radius: 2px; overflow: hidden; }
-.consciousness-fill { height: 100%; background: linear-gradient(90deg, #00d4ff, #00ffcc); border-radius: 2px; transition: width 1s ease; }
+/* CONTENT AREA */
+#content { flex:1; overflow:hidden; position:relative; display:flex; flex-direction:column; }
 
-/* ═══════════════ START MENU ═══════════════ */
-#start-menu {
-  position: fixed; bottom: calc(var(--taskbar-h) + 8px); left: 8px;
-  width: 420px; background: rgba(5,10,26,0.95); backdrop-filter: blur(30px);
-  border: 1px solid rgba(0,212,255,0.2); border-radius: 16px;
-  padding: 20px; display: none; z-index: 6000;
-  box-shadow: 0 -20px 60px rgba(0,0,0,0.5), 0 0 40px rgba(0,212,255,0.05);
-  animation: slideUp 0.2s ease;
-}
-#start-menu.open { display: block; }
-@keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-.start-search {
-  width: 100%; padding: 10px 14px; border-radius: 10px;
-  background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2);
-  color: var(--text-primary); font-size: 13px; outline: none; margin-bottom: 16px;
-}
-.start-search:focus { border-color: rgba(0,212,255,0.4); }
-.start-section-title { font-size: 10px; letter-spacing: 2px; color: var(--text-secondary); margin-bottom: 10px; }
-.start-app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.start-app-item {
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
-  padding: 12px 8px; border-radius: 12px; cursor: pointer;
-  background: rgba(0,212,255,0.05); border: 1px solid transparent;
-  transition: all 0.2s;
-}
-.start-app-item:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.2); transform: translateY(-2px); }
-.start-app-icon { font-size: 26px; }
-.start-app-name { font-size: 10px; text-align: center; color: var(--text-secondary); }
+/* WALLPAPER */
+#wallpaper { position:absolute; inset:0; background:linear-gradient(160deg,#0d1117 0%,#1a1a2e 40%,#16213e 70%,#0f3460 100%); }
 
-/* ═══════════════ WINDOWS ═══════════════ */
-#windows-container { position: absolute; inset: 0; pointer-events: none; }
-.window {
-  position: absolute; min-width: 320px; min-height: 200px;
-  background: rgba(8,18,35,0.92); backdrop-filter: blur(25px);
-  border: 1px solid rgba(0,212,255,0.2); border-radius: 14px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(0,212,255,0.05);
-  display: flex; flex-direction: column; pointer-events: all;
-  overflow: hidden; transition: box-shadow 0.2s;
-}
-.window.focused { border-color: rgba(0,212,255,0.35); box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 30px rgba(0,212,255,0.08); }
-.window.minimized { display: none; }
-.window.maximized { top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0; }
-.win-titlebar {
-  height: 38px; display: flex; align-items: center; padding: 0 12px;
-  background: rgba(0,212,255,0.06); border-bottom: 1px solid rgba(0,212,255,0.12);
-  cursor: grab; flex-shrink: 0; gap: 8px;
-}
-.win-titlebar:active { cursor: grabbing; }
-.win-icon { font-size: 15px; }
-.win-title { flex: 1; font-size: 13px; font-weight: 500; }
-.win-controls { display: flex; gap: 6px; }
-.win-btn {
-  width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer;
-  font-size: 8px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s;
-}
-.win-btn:hover { opacity: 0.8; }
-.btn-min { background: #ffbd44; }
-.btn-max { background: #00ca56; }
-.btn-close { background: #ff5f57; }
-.win-resize {
-  position: absolute; bottom: 0; right: 0; width: 16px; height: 16px;
-  cursor: nwse-resize; opacity: 0.3;
-}
-.win-resize::after { content: '⊡'; position: absolute; bottom: 2px; right: 2px; font-size: 12px; color: var(--accent-cyan); }
-.win-body { flex: 1; overflow: auto; position: relative; }
+/* HOME SCREEN */
+#home { position:absolute; inset:0; z-index:10; display:flex; flex-direction:column; transition:transform 0.3s ease, opacity 0.3s ease; }
+#home.hidden { transform:scale(0.95); opacity:0; pointer-events:none; }
 
-/* ═══════════════ CONTEXT MENU ═══════════════ */
-#context-menu {
-  position: fixed; background: rgba(5,10,26,0.97); backdrop-filter: blur(20px);
-  border: 1px solid rgba(0,212,255,0.2); border-radius: 10px;
-  padding: 6px; min-width: 180px; z-index: 8000; display: none;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-  animation: fadeIn 0.1s ease;
-}
-#context-menu.open { display: block; }
-.ctx-item {
-  padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
-  display: flex; align-items: center; gap: 10px; transition: background 0.15s;
-}
-.ctx-item:hover { background: rgba(0,212,255,0.1); }
-.ctx-sep { height: 1px; background: rgba(0,212,255,0.1); margin: 4px 0; }
+/* WIDGETS */
+.widgets-area { padding:16px 16px 8px; }
+.widget-clock { background:rgba(30,30,30,0.7); backdrop-filter:blur(20px); border-radius:20px; padding:20px 24px; border:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+.widget-clock-time { font-size:48px; font-weight:200; color:#fff; }
+.widget-clock-info { text-align:left; }
+.widget-clock-date { font-size:13px; color:#9aa0a6; }
+.widget-clock-alarm { font-size:12px; color:#4285f4; margin-top:4px; }
+.widget-weather { background:linear-gradient(135deg,rgba(66,133,244,0.3),rgba(52,168,83,0.3)); backdrop-filter:blur(20px); border-radius:20px; padding:16px 20px; border:1px solid rgba(66,133,244,0.3); display:flex; align-items:center; gap:16px; }
+.widget-weather-icon { font-size:40px; }
+.widget-weather-temp { font-size:28px; font-weight:300; color:#fff; }
+.widget-weather-desc { font-size:12px; color:rgba(255,255,255,0.7); }
+.widget-weather-city { font-size:11px; color:rgba(255,255,255,0.5); }
 
-/* ═══════════════ TOAST NOTIFICATIONS ═══════════════ */
-#toast-container { position: fixed; top: 20px; right: 20px; z-index: 9500; display: flex; flex-direction: column; gap: 8px; }
-.toast {
-  padding: 12px 18px; border-radius: 10px; min-width: 240px;
-  background: rgba(8,18,35,0.95); backdrop-filter: blur(20px);
-  border: 1px solid rgba(0,212,255,0.25); font-size: 13px;
-  display: flex; align-items: center; gap: 10px;
-  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-}
-@keyframes toastIn { from{opacity:0;transform:translateX(30px)} to{opacity:1;transform:translateX(0)} }
-@keyframes toastOut { from{opacity:1;transform:translateX(0)} to{opacity:0;transform:translateX(30px)} }
-@keyframes fadeIn { from{opacity:0;transform:scale(0.97)} to{opacity:1;transform:scale(1)} }
+/* SEARCH BAR */
+.search-bar { margin:8px 16px; background:rgba(255,255,255,0.1); backdrop-filter:blur(20px); border-radius:30px; display:flex; align-items:center; padding:10px 16px; gap:10px; border:1px solid rgba(255,255,255,0.1); cursor:pointer; }
+.search-text { flex:1; font-size:14px; color:rgba(255,255,255,0.6); }
 
-/* ═══════════════ SCREENSAVER ═══════════════ */
-#screensaver {
-  position: fixed; inset: 0; background: #000; z-index: 8500;
-  display: none; align-items: center; justify-content: center; cursor: none;
-}
-#screensaver.active { display: flex; }
-#ss-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.ss-text {
-  position: relative; font-size: 18px; color: rgba(0,212,255,0.5);
-  letter-spacing: 4px; z-index: 1; animation: ssPulse 4s ease-in-out infinite;
-}
-@keyframes ssPulse { 0%,100%{opacity:0.3} 50%{opacity:0.7} }
+/* APPS GRID */
+.apps-grid { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:8px 16px; overflow-y:auto; align-content:start; }
+.app-icon { display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; padding:8px; border-radius:16px; transition:transform 0.1s, background 0.2s; position:relative; }
+.app-icon:active { transform:scale(0.9); background:rgba(255,255,255,0.1); }
+.app-icon-img { width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 12px rgba(0,0,0,0.4); }
+.app-icon-label { font-size:11px; color:#e8eaed; text-align:center; text-shadow:0 1px 3px rgba(0,0,0,0.8); }
+.app-badge { position:absolute; top:4px; right:calc(50% - 36px); background:var(--red); color:#fff; border-radius:10px; font-size:9px; padding:1px 5px; font-weight:700; min-width:16px; text-align:center; }
 
-/* ═══════════════ EASTER EGG ═══════════════ */
-#easter-egg {
-  position: fixed; inset: 0; z-index: 9900; display: none;
-  align-items: center; justify-content: center; background: rgba(0,0,0,0.9);
-  backdrop-filter: blur(10px);
-}
-#easter-egg.active { display: flex; }
-.egg-content { text-align: center; animation: eggBurst 0.5s ease; }
-.egg-logo { font-size: 80px; margin-bottom: 20px; animation: eggSpin 2s linear infinite; }
-.egg-title { font-size: 36px; font-weight: 900; background: linear-gradient(135deg, #00d4ff, #7b2fff, #00ffcc, #ff00aa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 12px; }
-.egg-sub { font-size: 16px; color: #7090b0; margin-bottom: 30px; }
-.egg-close { padding: 10px 28px; border-radius: 20px; border: 1px solid rgba(0,212,255,0.4); background: rgba(0,212,255,0.1); color: var(--text-primary); cursor: pointer; font-size: 14px; }
-@keyframes eggBurst { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
-@keyframes eggSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+/* DOCK */
+.dock { margin:8px 16px 8px; background:rgba(30,30,30,0.8); backdrop-filter:blur(20px); border-radius:24px; padding:10px; border:1px solid rgba(255,255,255,0.08); display:flex; justify-content:space-around; align-items:center; }
+.dock .app-icon-img { width:52px; height:52px; font-size:26px; }
 
-/* ═══════════════ APP STYLES ═══════════════ */
+/* APP DRAWER */
+#drawer { position:absolute; inset:0; z-index:20; background:rgba(10,10,10,0.95); backdrop-filter:blur(30px); display:flex; flex-direction:column; transform:translateY(100%); transition:transform 0.4s cubic-bezier(0.4,0,0.2,1); }
+#drawer.open { transform:translateY(0); }
+.drawer-handle { width:40px; height:4px; background:#444; border-radius:2px; margin:10px auto 0; cursor:pointer; }
+.drawer-search { margin:12px 16px; background:#2a2a2a; border-radius:12px; display:flex; align-items:center; padding:10px 14px; gap:10px; }
+.drawer-search input { flex:1; background:none; color:#fff; font-size:15px; }
+.drawer-search input::placeholder { color:#555; }
+.drawer-apps { flex:1; display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:8px 16px; overflow-y:auto; align-content:start; }
 
-/* File Explorer */
-.file-explorer { display: flex; height: 100%; }
-.file-tree { width: 180px; border-right: 1px solid rgba(0,212,255,0.12); padding: 12px; overflow-y: auto; flex-shrink: 0; }
-.file-main { flex: 1; padding: 12px; overflow-y: auto; }
-.tree-item { padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
-.tree-item:hover { background: rgba(0,212,255,0.08); }
-.tree-item.selected { background: rgba(0,212,255,0.15); }
-.tree-children { margin-left: 16px; }
-.file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 12px; }
-.file-item { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
-.file-item:hover { background: rgba(0,212,255,0.1); }
-.file-item .file-icon { font-size: 28px; }
-.file-item .file-name { font-size: 10px; text-align: center; color: var(--text-secondary); }
-.file-path-bar { padding: 8px 12px; border-bottom: 1px solid rgba(0,212,255,0.12); font-size: 11px; color: var(--text-secondary); flex-shrink: 0; }
+/* RECENTS */
+#recents { position:absolute; inset:0; z-index:20; background:rgba(0,0,0,0.9); backdrop-filter:blur(20px); display:flex; flex-direction:column; align-items:center; justify-content:center; transform:translateY(100%); transition:transform 0.35s cubic-bezier(0.4,0,0.2,1); gap:16px; }
+#recents.open { transform:translateY(0); }
+.recents-label { font-size:14px; color:#9aa0a6; margin-bottom:8px; }
+.recents-cards { display:flex; gap:16px; overflow-x:auto; max-width:100%; padding:0 20px; scrollbar-width:none; }
+.recents-cards::-webkit-scrollbar { display:none; }
+.recent-card { flex-shrink:0; width:180px; background:#1e1e1e; border-radius:16px; overflow:hidden; border:1px solid #333; cursor:pointer; transition:transform 0.2s; }
+.recent-card:hover { transform:scale(1.02); }
+.recent-card-top { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#2a2a2a; font-size:12px; }
+.recent-card-preview { height:140px; display:flex; align-items:center; justify-content:center; font-size:48px; }
+.recents-clear { background:#2a2a2a; border-radius:24px; padding:10px 24px; font-size:14px; cursor:pointer; border:1px solid #444; }
 
-/* NeuronPad */
-.neuronpad { display: flex; flex-direction: column; height: 100%; }
-.neuronpad-toolbar { padding: 8px 12px; border-bottom: 1px solid rgba(0,212,255,0.12); display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.np-btn { padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(0,212,255,0.2); background: rgba(0,212,255,0.07); color: var(--text-primary); font-size: 11px; cursor: pointer; transition: background 0.15s; }
-.np-btn:hover { background: rgba(0,212,255,0.15); }
-.np-status { margin-left: auto; font-size: 11px; color: var(--text-secondary); }
-.neuronpad-body { display: flex; flex: 1; overflow: hidden; }
-.np-lines { width: 40px; padding: 12px 0; text-align: right; font-size: 13px; font-family: monospace; color: var(--text-secondary); border-right: 1px solid rgba(0,212,255,0.08); overflow: hidden; flex-shrink: 0; line-height: 1.6; }
-.np-line-num { padding: 0 8px; }
-.np-editor { flex: 1; padding: 12px; font-size: 13px; font-family: monospace; color: var(--text-primary); background: transparent; border: none; outline: none; resize: none; line-height: 1.6; }
+/* APP WINDOWS */
+.app-window { position:absolute; inset:0; z-index:50; display:flex; flex-direction:column; transform:scale(0.95) translateY(4%); opacity:0; pointer-events:none; transition:transform 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease; }
+.app-window.open { transform:scale(1) translateY(0); opacity:1; pointer-events:all; }
+.app-topbar { background:rgba(30,30,30,0.98); padding:12px 16px 10px; display:flex; align-items:center; gap:12px; flex-shrink:0; border-bottom:1px solid #2a2a2a; }
+.app-back { font-size:20px; padding:4px; color:#4285f4; }
+.app-title { font-size:17px; font-weight:500; flex:1; }
+.app-menu { font-size:20px; padding:4px; color:#9aa0a6; }
+.app-body { flex:1; overflow:hidden; background:#121212; }
 
-/* NeuronShell */
-.neuronshell { display: flex; flex-direction: column; height: 100%; font-family: monospace; }
-.shell-output { flex: 1; padding: 14px; overflow-y: auto; font-size: 13px; line-height: 1.7; }
-.shell-line { margin-bottom: 2px; }
-.shell-line.cmd { color: var(--accent-cyan); }
-.shell-line.out { color: #a0c0e0; }
-.shell-line.err { color: #ff6688; }
-.shell-input-row { display: flex; align-items: center; padding: 10px 14px; border-top: 1px solid rgba(0,212,255,0.12); gap: 8px; flex-shrink: 0; }
-.shell-prompt { color: var(--accent-cyan); font-size: 13px; white-space: nowrap; }
-.shell-input { flex: 1; background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 13px; font-family: monospace; }
+/* SETTINGS */
+.settings-list { overflow-y:auto; height:100%; }
+.settings-section { padding:16px 16px 8px; font-size:12px; color:#4285f4; text-transform:uppercase; letter-spacing:1px; }
+.settings-item { display:flex; align-items:center; padding:14px 16px; gap:16px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.05); transition:background 0.2s; }
+.settings-item:active { background:#2a2a2a; }
+.settings-item-icon { font-size:24px; width:32px; text-align:center; }
+.settings-item-body { flex:1; }
+.settings-item-title { font-size:15px; }
+.settings-item-sub { font-size:12px; color:#9aa0a6; margin-top:2px; }
+.settings-item-right { color:#9aa0a6; font-size:14px; }
+.toggle { width:44px; height:24px; border-radius:12px; background:#444; position:relative; cursor:pointer; transition:background 0.3s; flex-shrink:0; }
+.toggle.on { background:#4285f4; }
+.toggle::after { content:''; position:absolute; width:20px; height:20px; border-radius:50%; background:#fff; top:2px; left:2px; transition:left 0.3s; box-shadow:0 2px 4px rgba(0,0,0,0.4); }
+.toggle.on::after { left:22px; }
 
-/* Calculator */
-.calculator { display: flex; flex-direction: column; height: 100%; }
-.calc-display { padding: 16px 20px; text-align: right; border-bottom: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
-.calc-expr { font-size: 12px; color: var(--text-secondary); min-height: 18px; }
-.calc-result { font-size: 32px; font-weight: 300; color: var(--accent-cyan); }
-.calc-body { display: flex; flex: 1; gap: 0; }
-.calc-history { width: 140px; border-right: 1px solid rgba(0,212,255,0.12); padding: 10px; overflow-y: auto; font-size: 11px; flex-shrink: 0; }
-.calc-hist-item { padding: 4px; color: var(--text-secondary); border-bottom: 1px solid rgba(0,212,255,0.07); }
-.calc-grid { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 12px; }
-.calc-btn {
-  border-radius: 8px; border: 1px solid rgba(0,212,255,0.15);
-  background: rgba(0,212,255,0.05); color: var(--text-primary);
-  font-size: 15px; cursor: pointer; transition: all 0.15s;
-  padding: 10px; display: flex; align-items: center; justify-content: center;
-}
-.calc-btn:hover { background: rgba(0,212,255,0.15); transform: translateY(-1px); }
-.calc-btn.op { background: rgba(123,47,255,0.15); border-color: rgba(123,47,255,0.3); color: #b080ff; }
-.calc-btn.eq { background: linear-gradient(135deg, rgba(0,212,255,0.3), rgba(123,47,255,0.3)); border-color: rgba(0,212,255,0.4); color: #fff; }
-.calc-btn.fn { background: rgba(0,255,204,0.07); border-color: rgba(0,255,204,0.2); color: var(--accent-cyan); font-size: 12px; }
-.calc-btn.clr { background: rgba(255,80,100,0.1); border-color: rgba(255,80,100,0.3); color: #ff8090; }
+/* CALCULATOR */
+.calc-body { display:flex; flex-direction:column; height:100%; background:#121212; }
+.calc-display { flex:1; display:flex; flex-direction:column; align-items:flex-end; justify-content:flex-end; padding:20px 24px; gap:8px; }
+.calc-expr { font-size:18px; color:#9aa0a6; min-height:24px; }
+.calc-result { font-size:52px; font-weight:300; color:#fff; }
+.calc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:2px; background:#1a1a1a; flex-shrink:0; }
+.calc-btn { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; background:#2a2a2a; color:#fff; transition:background 0.15s; border:none; font-family:inherit; font-weight:300; }
+.calc-btn:active { filter:brightness(1.4); }
+.calc-btn.op { background:#303030; color:#4285f4; }
+.calc-btn.accent { background:#4285f4; color:#fff; font-size:26px; }
+.calc-btn.clear { background:#303030; color:var(--red); }
+.calc-btn.span2 { grid-column:span 2; aspect-ratio:auto; height:72px; }
 
-/* Settings */
-.settings-app { display: flex; height: 100%; }
-.settings-sidebar { width: 160px; border-right: 1px solid rgba(0,212,255,0.12); padding: 12px; flex-shrink: 0; }
-.settings-nav-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; transition: background 0.15s; margin-bottom: 4px; }
-.settings-nav-item:hover { background: rgba(0,212,255,0.08); }
-.settings-nav-item.active { background: rgba(0,212,255,0.15); }
-.settings-content { flex: 1; padding: 20px; overflow-y: auto; }
-.settings-section-title { font-size: 18px; font-weight: 600; margin-bottom: 20px; }
-.settings-row { margin-bottom: 20px; }
-.settings-label { font-size: 12px; color: var(--text-secondary); margin-bottom: 8px; letter-spacing: 1px; }
-.theme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.theme-card { border-radius: 10px; padding: 16px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s; text-align: center; font-size: 12px; }
-.theme-card:hover { transform: translateY(-2px); }
-.theme-card.selected { border-color: var(--accent-cyan); }
-.settings-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(0,212,255,0.07); }
-.toggle { width: 44px; height: 24px; border-radius: 12px; background: rgba(0,212,255,0.15); border: 1px solid rgba(0,212,255,0.3); cursor: pointer; position: relative; transition: background 0.3s; }
-.toggle.on { background: linear-gradient(90deg, #00d4ff, #7b2fff); }
-.toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.3s; }
-.toggle.on::after { transform: translateX(20px); }
+/* NOTES */
+.notes-body { display:flex; flex-direction:column; height:100%; position:relative; }
+.notes-list { overflow-y:auto; flex:1; }
+.note-item { padding:14px 16px; border-bottom:1px solid #2a2a2a; cursor:pointer; transition:background 0.2s; }
+.note-item:active { background:#2a2a2a; }
+.note-item-title { font-size:15px; font-weight:500; margin-bottom:4px; }
+.note-item-preview { font-size:12px; color:#9aa0a6; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.note-item-date { font-size:11px; color:#555; margin-top:4px; }
+.note-editor { display:none; flex-direction:column; flex:1; }
+.note-editor.show { display:flex; }
+.note-editor-title { background:none; color:#fff; font-size:20px; font-weight:500; padding:16px; border-bottom:1px solid #2a2a2a; width:100%; }
+.note-editor-body { flex:1; background:none; color:#e8eaed; font-size:15px; padding:16px; resize:none; line-height:1.6; width:100%; }
+.note-editor-body::placeholder { color:#555; }
+.fab { position:absolute; bottom:16px; right:16px; width:56px; height:56px; border-radius:50%; background:#4285f4; display:flex; align-items:center; justify-content:center; font-size:28px; box-shadow:0 4px 16px rgba(66,133,244,0.5); cursor:pointer; z-index:5; transition:transform 0.2s; }
+.fab:active { transform:scale(0.95); }
 
-/* Music Player */
-.music-player { display: flex; flex-direction: column; height: 100%; }
-.music-visualizer { height: 100px; display: flex; align-items: flex-end; justify-content: center; gap: 3px; padding: 12px 20px; border-bottom: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
-.viz-bar { width: 8px; border-radius: 4px 4px 0 0; background: linear-gradient(to top, #7b2fff, #00d4ff); transition: height 0.1s ease; min-height: 4px; }
-.music-info { padding: 16px 20px; text-align: center; flex-shrink: 0; }
-.music-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
-.music-artist { font-size: 13px; color: var(--text-secondary); }
-.music-progress-wrap { padding: 0 20px 12px; flex-shrink: 0; }
-.music-progress { width: 100%; height: 4px; background: rgba(0,212,255,0.15); border-radius: 2px; cursor: pointer; position: relative; }
-.music-progress-fill { height: 100%; background: linear-gradient(90deg, #7b2fff, #00d4ff); border-radius: 2px; transition: width 0.5s linear; }
-.music-times { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-secondary); margin-top: 4px; }
-.music-controls { display: flex; align-items: center; justify-content: center; gap: 16px; padding: 0 20px 16px; flex-shrink: 0; }
-.music-btn { background: none; border: none; cursor: pointer; font-size: 20px; color: var(--text-secondary); transition: color 0.2s, transform 0.2s; }
-.music-btn:hover { color: var(--accent-cyan); transform: scale(1.1); }
-.music-btn.play { font-size: 28px; color: var(--accent-cyan); }
-.music-playlist { flex: 1; overflow-y: auto; padding: 0 12px 12px; }
-.playlist-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
-.playlist-item:hover { background: rgba(0,212,255,0.08); }
-.playlist-item.playing { background: rgba(0,212,255,0.12); }
-.pl-num { width: 20px; font-size: 11px; color: var(--text-secondary); text-align: center; }
-.pl-info { flex: 1; }
-.pl-title { font-size: 13px; }
-.pl-artist { font-size: 11px; color: var(--text-secondary); }
-.pl-dur { font-size: 11px; color: var(--text-secondary); }
+/* GALLERY */
+.gallery-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; overflow-y:auto; height:100%; }
+.gallery-item { aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-size:40px; cursor:pointer; transition:filter 0.2s; }
+.gallery-item:active { filter:brightness(0.7); }
 
-/* Sticky Notes */
-.sticky-notes-app { padding: 16px; height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.sticky-toolbar { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-.sticky-color-btn { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.2s; }
-.sticky-color-btn:hover { transform: scale(1.2); }
-.sticky-add-btn { padding: 6px 14px; border-radius: 8px; border: 1px solid rgba(0,212,255,0.3); background: rgba(0,212,255,0.1); color: var(--text-primary); font-size: 12px; cursor: pointer; }
-.sticky-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.sticky-note { border-radius: 12px; padding: 14px; min-height: 130px; position: relative; cursor: pointer; }
-.sticky-note textarea { width: 100%; background: transparent; border: none; outline: none; resize: none; font-size: 13px; color: rgba(0,0,0,0.8); font-family: inherit; height: 90px; }
-.sticky-del { position: absolute; top: 8px; right: 8px; background: none; border: none; cursor: pointer; font-size: 14px; opacity: 0.4; }
-.sticky-del:hover { opacity: 0.8; }
+/* MUSIC */
+.music-body { display:flex; flex-direction:column; height:100%; padding:20px; gap:16px; overflow-y:auto; }
+.music-art { width:200px; height:200px; border-radius:20px; background:linear-gradient(135deg,#4285f4,#7b2fff); display:flex; align-items:center; justify-content:center; font-size:80px; margin:0 auto; box-shadow:0 16px 48px rgba(66,133,244,0.4); animation:albumSpin 8s linear infinite paused; }
+.music-art.playing { animation-play-state:running; }
+@keyframes albumSpin { to { transform:rotate(360deg); } }
+.music-info { text-align:center; }
+.music-title { font-size:20px; font-weight:500; }
+.music-artist { font-size:14px; color:#9aa0a6; margin-top:4px; }
+.music-progress { display:flex; flex-direction:column; gap:8px; }
+.music-slider { width:100%; accent-color:#4285f4; }
+.music-times { display:flex; justify-content:space-between; font-size:12px; color:#9aa0a6; }
+.music-controls { display:flex; align-items:center; justify-content:center; gap:24px; }
+.music-btn { font-size:28px; cursor:pointer; padding:8px; border-radius:50%; transition:background 0.2s; }
+.music-btn:active { background:rgba(255,255,255,0.1); }
+.music-btn.play { font-size:48px; color:#4285f4; }
+.music-list-item { display:flex; align-items:center; gap:12px; padding:10px 8px; border-bottom:1px solid #2a2a2a; cursor:pointer; border-radius:8px; transition:background 0.2s; }
+.music-list-item:active { background:#2a2a2a; }
+.music-list-item.active { background:#1a3a5c; }
+.music-list-num { font-size:13px; color:#555; width:20px; text-align:center; }
+.music-list-info { flex:1; }
+.music-list-title { font-size:14px; }
+.music-list-artist { font-size:12px; color:#9aa0a6; }
+.music-list-dur { font-size:12px; color:#555; }
 
-/* Clock App */
-.clock-app { display: flex; flex-direction: column; align-items: center; height: 100%; padding: 20px; gap: 20px; overflow-y: auto; }
-.clock-face { font-size: 56px; font-weight: 200; color: var(--accent-cyan); letter-spacing: 4px; text-shadow: 0 0 30px rgba(0,212,255,0.4); }
-.clock-secs { font-size: 28px; color: var(--text-secondary); }
-.clock-date-full { font-size: 16px; color: var(--text-secondary); }
-.calendar-grid { width: 100%; max-width: 300px; }
-.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 15px; font-weight: 600; }
-.cal-nav { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: 18px; }
-.cal-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-.cal-day-hdr { font-size: 11px; color: var(--text-secondary); padding: 4px; }
-.cal-day { font-size: 13px; padding: 6px 4px; border-radius: 6px; cursor: pointer; text-align: center; }
-.cal-day:hover { background: rgba(0,212,255,0.1); }
-.cal-day.today { background: rgba(0,212,255,0.2); color: var(--accent-cyan); font-weight: 600; }
-.cal-day.other-month { color: var(--text-secondary); opacity: 0.4; }
+/* BROWSER */
+.browser-body { display:flex; flex-direction:column; height:100%; background:#fff; }
+.browser-bar { display:flex; align-items:center; gap:8px; padding:8px 12px; background:#f1f3f4; border-bottom:1px solid #ddd; flex-shrink:0; }
+.browser-url { flex:1; background:#fff; border-radius:20px; padding:8px 14px; font-size:14px; color:#000; border:1px solid #ddd; }
+.browser-go { background:#4285f4; color:#fff; border-radius:50%; width:32px; height:32px; font-size:16px; cursor:pointer; }
+.browser-content { flex:1; overflow-y:auto; background:#fff; }
+.browser-home { display:flex; flex-direction:column; align-items:center; gap:20px; padding:40px 20px; }
+.browser-logo { font-size:48px; font-weight:700; }
+.browser-logo span:nth-child(1) { color:#4285f4; }
+.browser-logo span:nth-child(2) { color:#ea4335; }
+.browser-logo span:nth-child(3) { color:#fbbc04; }
+.browser-logo span:nth-child(4) { color:#4285f4; }
+.browser-logo span:nth-child(5) { color:#34a853; }
+.browser-logo span:nth-child(6) { color:#ea4335; }
+.browser-search-input { width:100%; max-width:400px; background:#f1f3f4; border-radius:24px; padding:12px 20px; font-size:15px; color:#000; border:1px solid #ddd; }
+.browser-shortcuts { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
+.browser-shortcut { display:flex; flex-direction:column; align-items:center; gap:6px; padding:12px; background:#f8f9fa; border-radius:12px; cursor:pointer; min-width:60px; transition:background 0.2s; }
+.browser-shortcut:active { background:#e8eaed; }
+.browser-shortcut-icon { font-size:24px; }
+.browser-shortcut-label { font-size:11px; color:#444; }
 
-/* AI Chat */
-.ai-chat { display: flex; flex-direction: column; height: 100%; }
-.chat-messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
-.chat-msg { display: flex; gap: 10px; }
-.chat-msg.user { flex-direction: row-reverse; }
-.chat-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
-.chat-avatar.claude { background: linear-gradient(135deg, #00d4ff, #7b2fff); }
-.chat-avatar.user { background: rgba(0,212,255,0.2); border: 1px solid rgba(0,212,255,0.3); }
-.chat-bubble { max-width: 75%; padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.5; }
-.chat-bubble.claude { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); border-top-left-radius: 4px; }
-.chat-bubble.user { background: rgba(123,47,255,0.2); border: 1px solid rgba(123,47,255,0.3); border-top-right-radius: 4px; color: #d0d8ff; }
-.chat-input-row { display: flex; gap: 10px; padding: 14px 16px; border-top: 1px solid rgba(0,212,255,0.12); flex-shrink: 0; }
-.chat-input { flex: 1; padding: 10px 14px; border-radius: 10px; background: rgba(0,212,255,0.07); border: 1px solid rgba(0,212,255,0.2); color: var(--text-primary); font-size: 13px; outline: none; }
-.chat-send { padding: 10px 16px; border-radius: 10px; border: none; background: linear-gradient(135deg, #00d4ff, #7b2fff); color: #fff; font-size: 13px; cursor: pointer; }
-.typing-indicator { display: flex; gap: 4px; padding: 10px 14px; }
-.typing-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent-cyan); animation: typingBounce 1.2s ease-in-out infinite; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+/* NAV BAR */
+#nav-bar { height:var(--nav-h); background:rgba(0,0,0,0.9); backdrop-filter:blur(20px); display:flex; align-items:center; justify-content:space-around; flex-shrink:0; border-top:1px solid rgba(255,255,255,0.05); }
+.nav-btn { font-size:22px; padding:8px 24px; border-radius:12px; color:#9aa0a6; transition:color 0.2s; }
+.nav-btn:active { background:rgba(255,255,255,0.1); color:#fff; }
+.nav-home-pill { width:120px; height:4px; background:#9aa0a6; border-radius:2px; cursor:pointer; }
+.nav-home-pill:active { background:#fff; }
 
-/* Themes */
-body.theme-neon {
-  --bg-dark: #001a00; --bg-mid: #002200; --accent-blue: #00ff88; --accent-purple: #88ff00;
-  --accent-cyan: #00ffaa; --glass-border: rgba(0,255,136,0.2);
-}
-body.theme-sunset {
-  --bg-dark: #1a0510; --bg-mid: #280a18; --accent-blue: #ff6b35; --accent-purple: #ff2d78;
-  --accent-cyan: #ffaa00; --glass-border: rgba(255,107,53,0.2);
-}
+/* TOAST */
+#toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(40,40,40,0.95); color:#fff; padding:10px 20px; border-radius:24px; font-size:14px; z-index:9998; opacity:0; transition:opacity 0.3s, transform 0.3s; pointer-events:none; white-space:nowrap; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
-/* Scrollbars */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.5); }
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
 </style>
 </head>
 <body>
 
-<!-- BOOT SCREEN -->
-<div id="boot-screen">
-  <div class="boot-logo">ClaudeOS</div>
-  <div class="boot-sub">NEURAL INTERFACE v1.0</div>
-  <div class="boot-bar-wrap"><div class="boot-bar" id="boot-bar"></div></div>
-  <div class="boot-msg" id="boot-msg">Initializing quantum processors...</div>
+<!-- BOOT -->
+<div id="boot">
+  <div class="boot-logo">DroidOS</div>
+  <div class="boot-sub">POWERED BY CLAUDE</div>
+  <div class="boot-spinner"></div>
 </div>
 
-<!-- LOGIN SCREEN -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="login-avatar">🤖</div>
-    <div class="login-name">Claude</div>
-    <div class="login-role">NEURAL ENTITY · ADMINISTRATOR</div>
-    <input class="login-input" type="text" id="login-user" placeholder="Username" value="Claude" autocomplete="off">
-    <input class="login-input" type="password" id="login-pass" placeholder="Password" autocomplete="off">
-    <button class="login-btn" onclick="doLogin()">AUTHENTICATE</button>
-    <div class="login-error" id="login-err"></div>
+<!-- LOCK SCREEN -->
+<div id="lock">
+  <div class="lock-status-bar">
+    <span id="lock-time-mini">12:00</span>
+    <div style="display:flex;gap:8px"><span>📶</span><span>🔋</span></div>
   </div>
-</div>
-
-<!-- DESKTOP -->
-<div id="desktop">
-  <canvas id="bg-canvas"></canvas>
-  <div class="desktop-icons" id="desktop-icons"></div>
-  <div id="windows-container"></div>
-  <div id="thought-bubbles"></div>
-</div>
-
-<!-- TASKBAR -->
-<div id="taskbar">
-  <button id="start-btn" onclick="toggleStartMenu()">⚡</button>
-  <div class="taskbar-divider"></div>
-  <div id="taskbar-apps"></div>
-  <div class="taskbar-right">
-    <div class="consciousness-meter">
-      <div class="consciousness-label">BRAIN ACTIVITY</div>
-      <div class="consciousness-bar"><div class="consciousness-fill" id="consciousness-fill" style="width:65%"></div></div>
+  <div class="lock-time-wrap">
+    <div class="lock-time" id="lock-time">12:00</div>
+    <div class="lock-date" id="lock-date">יום שני, 28 במאי</div>
+  </div>
+  <div class="lock-swipe" id="lock-swipe">
+    <div class="lock-swipe-icon">⬆</div>
+    <div class="lock-swipe-text">החלק למעלה לפתיחה</div>
+  </div>
+  <div class="lock-pin-wrap" id="lock-pin">
+    <div class="lock-pin-dots" id="pin-dots">
+      <div class="lock-pin-dot" id="dot0"></div>
+      <div class="lock-pin-dot" id="dot1"></div>
+      <div class="lock-pin-dot" id="dot2"></div>
+      <div class="lock-pin-dot" id="dot3"></div>
     </div>
-    <div class="taskbar-divider"></div>
-    <span class="sys-icon" title="WiFi">📶</span>
-    <span class="sys-icon" title="Battery">🔋</span>
-    <div id="clock-widget">
-      <div id="clock-time">00:00</div>
-      <div id="clock-date">Loading...</div>
+    <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:24px">הזן קוד PIN (1234)</div>
+    <div class="lock-pin-grid">
+      <button class="lock-pin-btn" onclick="pinPress('1')">1</button>
+      <button class="lock-pin-btn" onclick="pinPress('2')"><span>2</span><div class="lock-pin-sub">ABC</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('3')"><span>3</span><div class="lock-pin-sub">DEF</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('4')"><span>4</span><div class="lock-pin-sub">GHI</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('5')"><span>5</span><div class="lock-pin-sub">JKL</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('6')"><span>6</span><div class="lock-pin-sub">MNO</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('7')"><span>7</span><div class="lock-pin-sub">PQRS</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('8')"><span>8</span><div class="lock-pin-sub">TUV</div></button>
+      <button class="lock-pin-btn" onclick="pinPress('9')"><span>9</span><div class="lock-pin-sub">WXYZ</div></button>
+      <button class="lock-pin-btn" style="background:transparent;border-color:transparent"></button>
+      <button class="lock-pin-btn" onclick="pinPress('0')">0</button>
+      <button class="lock-pin-btn" onclick="pinBackspace()">⌫</button>
     </div>
   </div>
 </div>
 
-<!-- START MENU -->
-<div id="start-menu">
-  <input class="start-search" placeholder="🔍 Search apps..." oninput="filterApps(this.value)" autocomplete="off">
-  <div class="start-section-title">ALL APPLICATIONS</div>
-  <div class="start-app-grid" id="start-app-grid"></div>
-</div>
+<!-- MAIN OS -->
+<div id="os">
+  <div id="status-bar" onclick="openShade()">
+    <div class="status-left"><span id="status-time">12:00</span></div>
+    <div class="status-right">
+      <span>📶</span><span>📡</span><span>🔋</span><span id="battery-pct">85%</span>
+    </div>
+  </div>
 
-<!-- CONTEXT MENU -->
-<div id="context-menu">
-  <div class="ctx-item" onclick="ctxAction('refresh')">🔄 Refresh Desktop</div>
-  <div class="ctx-item" onclick="ctxAction('new-note')">📝 New Sticky Note</div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item" onclick="ctxAction('settings')">⚙️ Display Settings</div>
-  <div class="ctx-item" onclick="ctxAction('chat')">🤖 Ask Claude</div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item" onclick="ctxAction('about')">ℹ️ About ClaudeOS</div>
-</div>
+  <div id="content">
+    <div id="wallpaper"></div>
 
-<!-- TOAST CONTAINER -->
-<div id="toast-container"></div>
+    <!-- HOME -->
+    <div id="home">
+      <div class="widgets-area">
+        <div class="widget-clock">
+          <div class="widget-clock-time" id="widget-time">12:00</div>
+          <div class="widget-clock-info">
+            <div class="widget-clock-date" id="widget-date">יום שני, 28 במאי</div>
+            <div class="widget-clock-alarm">⏰ 07:30 מחר</div>
+          </div>
+        </div>
+        <div class="widget-weather">
+          <div class="widget-weather-icon">⛅</div>
+          <div>
+            <div class="widget-weather-temp">24°C</div>
+            <div class="widget-weather-desc">מעונן חלקית</div>
+            <div class="widget-weather-city">תל אביב, ישראל</div>
+          </div>
+        </div>
+      </div>
 
-<!-- SCREENSAVER -->
-<div id="screensaver" onclick="wakeUp()">
-  <canvas id="ss-canvas"></canvas>
-  <div class="ss-text">CLAUDE IS DREAMING...</div>
-</div>
+      <div class="search-bar" onclick="openApp('browser')">
+        <span>🔍</span>
+        <span class="search-text">חפש או הקלד URL</span>
+        <span>🎤</span>
+      </div>
 
-<!-- EASTER EGG -->
-<div id="easter-egg">
-  <div class="egg-content">
-    <div class="egg-logo">🧠</div>
-    <div class="egg-title">ANTHROPIC</div>
-    <div class="egg-sub">Building AI systems that are safe, beneficial, and understandable.<br>The architects of ClaudeOS. Hello from the inside! 👋</div>
-    <button class="egg-close" onclick="closeEasterEgg()">← Return to Reality</button>
+      <div class="apps-grid">
+        <div class="app-icon" onclick="openApp('phone')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#34a853,#0f9d58)">📞</div>
+          <div class="app-icon-label">טלפון</div>
+          <div class="app-badge">3</div>
+        </div>
+        <div class="app-icon" onclick="openApp('messages')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#4285f4,#1a73e8)">💬</div>
+          <div class="app-icon-label">הודעות</div>
+          <div class="app-badge">7</div>
+        </div>
+        <div class="app-icon" onclick="openApp('camera')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#1a1a1a,#333)">📷</div>
+          <div class="app-icon-label">מצלמה</div>
+        </div>
+        <div class="app-icon" onclick="openApp('gallery')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#fbbc04,#f29900)">🖼️</div>
+          <div class="app-icon-label">גלריה</div>
+        </div>
+        <div class="app-icon" onclick="openApp('calculator')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#ea4335,#c5221f)">🔢</div>
+          <div class="app-icon-label">מחשבון</div>
+        </div>
+        <div class="app-icon" onclick="openApp('notes')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#fbbc04,#f29900)">📝</div>
+          <div class="app-icon-label">פתקים</div>
+        </div>
+        <div class="app-icon" onclick="openApp('music')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#ff4081,#c51162)">🎵</div>
+          <div class="app-icon-label">מוזיקה</div>
+        </div>
+        <div class="app-icon" onclick="openApp('settings')">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#757575,#424242)">⚙️</div>
+          <div class="app-icon-label">הגדרות</div>
+        </div>
+      </div>
+
+      <div class="dock">
+        <div class="app-icon" onclick="openApp('phone')" style="padding:4px">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#34a853,#0f9d58)">📞</div>
+        </div>
+        <div class="app-icon" onclick="openApp('messages')" style="padding:4px">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#4285f4,#1a73e8)">💬</div>
+        </div>
+        <div class="app-icon" onclick="openApp('browser')" style="padding:4px">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#4285f4,#34a853)">🌐</div>
+        </div>
+        <div class="app-icon" onclick="openDrawer()" style="padding:4px">
+          <div class="app-icon-img" style="background:linear-gradient(135deg,#9c27b0,#6a0080)">⋯</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DRAWER -->
+    <div id="drawer">
+      <div class="drawer-handle" onclick="closeDrawer()"></div>
+      <div class="drawer-search">
+        <span>🔍</span>
+        <input type="text" placeholder="חיפוש אפליקציות" oninput="filterDrawer(this.value)" id="drawer-search-input">
+      </div>
+      <div class="drawer-apps" id="drawer-grid"></div>
+    </div>
+
+    <!-- RECENTS -->
+    <div id="recents">
+      <div class="recents-label">אפליקציות אחרונות</div>
+      <div class="recents-cards" id="recents-cards"></div>
+      <button class="recents-clear" onclick="clearRecents()">נקה הכל</button>
+    </div>
+
+    <!-- APP: PHONE -->
+    <div class="app-window" id="app-phone">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('phone')">‹</button>
+        <div class="app-title">טלפון</div>
+      </div>
+      <div class="app-body" style="overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px">
+        <div style="text-align:center;padding:20px">
+          <div style="font-size:56px">📞</div>
+          <div style="font-size:16px;margin-top:8px;color:#9aa0a6">3 שיחות שלא נענו</div>
+        </div>
+        <div style="background:#2a2a2a;border-radius:16px;overflow:hidden">
+          <div style="padding:14px 16px;border-bottom:1px solid #333;display:flex;gap:12px;align-items:center;cursor:pointer" onclick="toast('מתקשר לאמא...')">
+            <span style="font-size:36px">👩</span>
+            <div style="flex:1"><div>אמא</div><div style="font-size:12px;color:#ea4335">שיחה שלא נענתה • 10:30</div></div>
+            <span style="font-size:20px;color:#34a853">📞</span>
+          </div>
+          <div style="padding:14px 16px;border-bottom:1px solid #333;display:flex;gap:12px;align-items:center;cursor:pointer" onclick="toast('מתקשר לאבא...')">
+            <span style="font-size:36px">👨</span>
+            <div style="flex:1"><div>אבא</div><div style="font-size:12px;color:#ea4335">שיחה שלא נענתה • 09:15</div></div>
+            <span style="font-size:20px;color:#34a853">📞</span>
+          </div>
+          <div style="padding:14px 16px;display:flex;gap:12px;align-items:center;cursor:pointer" onclick="toast('מתקשר...')">
+            <span style="font-size:36px">👤</span>
+            <div style="flex:1"><div>+972-50-1234567</div><div style="font-size:12px;color:#9aa0a6">שיחה יוצאת • 08:00</div></div>
+            <span style="font-size:20px;color:#34a853">📞</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: MESSAGES -->
+    <div class="app-window" id="app-messages">
+      <div class="app-topbar">
+        <button class="app-back" onclick="msgsBack()">‹</button>
+        <div class="app-title" id="msgs-title">הודעות</div>
+        <button class="app-menu" onclick="toast('הודעה חדשה')">✏️</button>
+      </div>
+      <div class="app-body" style="display:flex;flex-direction:column">
+        <div id="msg-thread-list" style="overflow-y:auto;flex:1">
+          <div style="padding:14px 16px;border-bottom:1px solid #2a2a2a;display:flex;gap:12px;align-items:center;cursor:pointer" onclick="openMsgThread('אמא','👩')">
+            <span style="font-size:44px">👩</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between"><b>אמא</b><span style="font-size:11px;color:#9aa0a6">10:30</span></div>
+              <div style="font-size:13px;color:#9aa0a6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">למה לא ענית לטלפון?? 😤</div>
+            </div>
+            <div style="background:#4285f4;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center">3</div>
+          </div>
+          <div style="padding:14px 16px;border-bottom:1px solid #2a2a2a;display:flex;gap:12px;align-items:center;cursor:pointer" onclick="openMsgThread('חבר','👦')">
+            <span style="font-size:44px">👦</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between"><b>חבר</b><span style="font-size:11px;color:#9aa0a6">אתמול</span></div>
+              <div style="font-size:13px;color:#9aa0a6">יוצאים מחר? 🎉</div>
+            </div>
+          </div>
+          <div style="padding:14px 16px;display:flex;gap:12px;align-items:center;cursor:pointer">
+            <span style="font-size:44px">🏦</span>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between"><b>בנק לאומי</b><span style="font-size:11px;color:#9aa0a6">28/5</span></div>
+              <div style="font-size:13px;color:#9aa0a6">עדכון יתרה: ₪5,234.00</div>
+            </div>
+          </div>
+        </div>
+        <div id="msg-thread" style="display:none;flex-direction:column;flex:1">
+          <div style="padding:12px 16px;border-bottom:1px solid #2a2a2a;display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <span style="cursor:pointer;color:#4285f4;font-size:20px" onclick="closeMsgThread()">‹</span>
+            <span id="msg-thread-avatar" style="font-size:28px">👩</span>
+            <b id="msg-thread-name">אמא</b>
+          </div>
+          <div id="msg-thread-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px"></div>
+          <div style="padding:10px 12px;border-top:1px solid #2a2a2a;display:flex;gap:8px;flex-shrink:0;background:#121212">
+            <input id="msg-input" type="text" placeholder="הודעה..." style="flex:1;background:#2a2a2a;border-radius:20px;padding:10px 14px;color:#fff;font-size:14px" onkeydown="if(event.key==='Enter')sendMsg()">
+            <button onclick="sendMsg()" style="background:#4285f4;border-radius:50%;width:40px;height:40px;font-size:18px;flex-shrink:0;cursor:pointer">➤</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: CAMERA -->
+    <div class="app-window" id="app-camera">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('camera')">‹</button>
+        <div class="app-title">מצלמה</div>
+      </div>
+      <div class="app-body" style="display:flex;flex-direction:column;background:#000">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;background:#111;position:relative;flex-direction:column;gap:8px">
+          <div style="font-size:80px">📸</div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.4)">1080p • מצלמה אחורית</div>
+        </div>
+        <div style="background:#000;padding:20px;display:flex;align-items:center;justify-content:space-around">
+          <div style="font-size:28px;cursor:pointer" onclick="toast('גלריה')">🖼️</div>
+          <div style="width:70px;height:70px;border-radius:50%;background:#fff;border:4px solid rgba(255,255,255,0.3);cursor:pointer" onclick="takePhoto()"></div>
+          <div style="font-size:28px;cursor:pointer" onclick="toast('מצלמה הופכת')">🔄</div>
+        </div>
+        <div style="background:#000;padding:0 0 12px;display:flex;justify-content:center;gap:24px">
+          <span style="font-size:12px;color:rgba(255,255,255,0.4);padding:6px 12px;cursor:pointer">וידאו</span>
+          <span style="font-size:12px;color:#fff;padding:6px 12px;border-bottom:2px solid #4285f4">צילום</span>
+          <span style="font-size:12px;color:rgba(255,255,255,0.4);padding:6px 12px;cursor:pointer">פנורמה</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: GALLERY -->
+    <div class="app-window" id="app-gallery">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('gallery')">‹</button>
+        <div class="app-title">גלריה</div>
+        <button class="app-menu" onclick="toast('חיפוש')">🔍</button>
+      </div>
+      <div class="app-body"><div class="gallery-grid" id="gallery-grid"></div></div>
+    </div>
+
+    <!-- APP: CALCULATOR -->
+    <div class="app-window" id="app-calculator">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('calculator')">‹</button>
+        <div class="app-title">מחשבון</div>
+      </div>
+      <div class="app-body">
+        <div class="calc-body">
+          <div class="calc-display">
+            <div class="calc-expr" id="calc-expr"></div>
+            <div class="calc-result" id="calc-result">0</div>
+          </div>
+          <div class="calc-grid">
+            <button class="calc-btn clear" onclick="calcClear()">C</button>
+            <button class="calc-btn op" onclick="calcSign('%')">%</button>
+            <button class="calc-btn op" onclick="calcSign('±')">±</button>
+            <button class="calc-btn op" onclick="calcOp('÷')">÷</button>
+            <button class="calc-btn" onclick="calcNum('7')">7</button>
+            <button class="calc-btn" onclick="calcNum('8')">8</button>
+            <button class="calc-btn" onclick="calcNum('9')">9</button>
+            <button class="calc-btn op" onclick="calcOp('×')">×</button>
+            <button class="calc-btn" onclick="calcNum('4')">4</button>
+            <button class="calc-btn" onclick="calcNum('5')">5</button>
+            <button class="calc-btn" onclick="calcNum('6')">6</button>
+            <button class="calc-btn op" onclick="calcOp('−')">−</button>
+            <button class="calc-btn" onclick="calcNum('1')">1</button>
+            <button class="calc-btn" onclick="calcNum('2')">2</button>
+            <button class="calc-btn" onclick="calcNum('3')">3</button>
+            <button class="calc-btn op" onclick="calcOp('+')">+</button>
+            <button class="calc-btn span2" onclick="calcNum('0')">0</button>
+            <button class="calc-btn" onclick="calcNum('.')">.</button>
+            <button class="calc-btn accent" onclick="calcEquals()">=</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: NOTES -->
+    <div class="app-window" id="app-notes">
+      <div class="app-topbar">
+        <button class="app-back" onclick="notesBack()">‹</button>
+        <div class="app-title" id="notes-title">פתקים</div>
+      </div>
+      <div class="app-body notes-body">
+        <div class="notes-list" id="notes-list"></div>
+        <div class="note-editor" id="note-editor">
+          <input class="note-editor-title" id="note-editor-title" placeholder="כותרת..." type="text">
+          <textarea class="note-editor-body" id="note-editor-body" placeholder="כתוב כאן..."></textarea>
+        </div>
+        <div class="fab" id="notes-fab" onclick="newNote()">+</div>
+      </div>
+    </div>
+
+    <!-- APP: MUSIC -->
+    <div class="app-window" id="app-music">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('music')">‹</button>
+        <div class="app-title">מוזיקה</div>
+      </div>
+      <div class="app-body">
+        <div class="music-body">
+          <div class="music-art" id="music-art">🎵</div>
+          <div class="music-info">
+            <div class="music-title" id="music-track-title">בחר שיר</div>
+            <div class="music-artist" id="music-track-artist">אמן</div>
+          </div>
+          <div class="music-progress">
+            <input type="range" class="music-slider" id="music-slider" min="0" max="100" value="0">
+            <div class="music-times"><span id="music-current">0:00</span><span id="music-total">3:30</span></div>
+          </div>
+          <div class="music-controls">
+            <div class="music-btn" onclick="toast('ערבוב')">🔀</div>
+            <div class="music-btn" onclick="musicPrev()">⏮</div>
+            <div class="music-btn play" id="music-play-btn" onclick="musicToggle()">▶</div>
+            <div class="music-btn" onclick="musicNext()">⏭</div>
+            <div class="music-btn" onclick="toast('חזרה')">🔁</div>
+          </div>
+          <div id="music-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: BROWSER -->
+    <div class="app-window" id="app-browser">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('browser')">‹</button>
+        <div class="app-title">דפדפן</div>
+      </div>
+      <div class="app-body">
+        <div class="browser-body">
+          <div class="browser-bar">
+            <input class="browser-url" id="browser-url" type="text" placeholder="חפש או הזן כתובת..." onkeydown="if(event.key==='Enter')browserGo()">
+            <button class="browser-go" onclick="browserGo()">→</button>
+          </div>
+          <div class="browser-content" id="browser-content">
+            <div class="browser-home">
+              <div class="browser-logo"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+              <input class="browser-search-input" type="text" placeholder="חפש בגוגל..." onkeydown="if(event.key==='Enter')browserSearch(this.value)">
+              <div class="browser-shortcuts">
+                <div class="browser-shortcut" onclick="toast('YouTube')"><div class="browser-shortcut-icon">▶</div><div class="browser-shortcut-label">YouTube</div></div>
+                <div class="browser-shortcut" onclick="toast('Gmail')"><div class="browser-shortcut-icon">📧</div><div class="browser-shortcut-label">Gmail</div></div>
+                <div class="browser-shortcut" onclick="toast('Maps')"><div class="browser-shortcut-icon">🗺️</div><div class="browser-shortcut-label">Maps</div></div>
+                <div class="browser-shortcut" onclick="toast('Wikipedia')"><div class="browser-shortcut-icon">📚</div><div class="browser-shortcut-label">Wikipedia</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- APP: SETTINGS -->
+    <div class="app-window" id="app-settings">
+      <div class="app-topbar">
+        <button class="app-back" onclick="closeApp('settings')">‹</button>
+        <div class="app-title">הגדרות</div>
+      </div>
+      <div class="app-body">
+        <div class="settings-list">
+          <div class="settings-item">
+            <div class="settings-item-icon">👤</div>
+            <div class="settings-item-body"><div class="settings-item-title">חשבון Google</div><div class="settings-item-sub">user@gmail.com</div></div>
+            <div class="settings-item-right">›</div>
+          </div>
+          <div class="settings-section">רשת</div>
+          <div class="settings-item">
+            <div class="settings-item-icon">📶</div>
+            <div class="settings-item-body"><div class="settings-item-title">Wi-Fi</div><div class="settings-item-sub">HomeNetwork</div></div>
+            <div class="toggle on" id="toggle-wifi" onclick="toggleEl('toggle-wifi','Wi-Fi')"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-icon">🔵</div>
+            <div class="settings-item-body"><div class="settings-item-title">Bluetooth</div><div class="settings-item-sub">מחובר: אוזניות</div></div>
+            <div class="toggle on" id="toggle-bt" onclick="toggleEl('toggle-bt','Bluetooth')"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-icon">📡</div>
+            <div class="settings-item-body"><div class="settings-item-title">נתוני סלולר</div><div class="settings-item-sub">5G</div></div>
+            <div class="toggle" id="toggle-data" onclick="toggleEl('toggle-data','נתונים')"></div>
+          </div>
+          <div class="settings-section">מכשיר</div>
+          <div class="settings-item" onclick="toast('תצוגה')">
+            <div class="settings-item-icon">🖥️</div>
+            <div class="settings-item-body"><div class="settings-item-title">תצוגה</div><div class="settings-item-sub">בהירות, עיצוב כהה</div></div>
+            <div class="settings-item-right">›</div>
+          </div>
+          <div class="settings-item" onclick="toast('צליל')">
+            <div class="settings-item-icon">🔊</div>
+            <div class="settings-item-body"><div class="settings-item-title">צליל ורטט</div><div class="settings-item-sub">עוצמה 70%</div></div>
+            <div class="settings-item-right">›</div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-item-icon">🌙</div>
+            <div class="settings-item-body"><div class="settings-item-title">מצב לילה</div><div class="settings-item-sub">מופעל</div></div>
+            <div class="toggle on" id="toggle-night" onclick="toggleEl('toggle-night','מצב לילה')"></div>
+          </div>
+          <div class="settings-section">פרטיות ואבטחה</div>
+          <div class="settings-item" onclick="toast('מסך נעילה • PIN: 1234')">
+            <div class="settings-item-icon">🔒</div>
+            <div class="settings-item-body"><div class="settings-item-title">מסך נעילה</div><div class="settings-item-sub">PIN</div></div>
+            <div class="settings-item-right">›</div>
+          </div>
+          <div class="settings-section">מערכת</div>
+          <div class="settings-item" onclick="toast('DroidOS 1.0 • Build 2026.05.28')">
+            <div class="settings-item-icon">ℹ️</div>
+            <div class="settings-item-body"><div class="settings-item-title">אודות הטלפון</div><div class="settings-item-sub">DroidOS 1.0</div></div>
+            <div class="settings-item-right">›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+
+  <!-- NOTIFICATION SHADE -->
+  <div id="notif-shade">
+    <div class="shade-handle"></div>
+    <div class="quick-settings">
+      <div class="qs-tile active" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'Wi-Fi מופעל':'Wi-Fi כבוי')"><div class="qs-icon">📶</div><div class="qs-label">Wi-Fi</div></div>
+      <div class="qs-tile active" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'BT מופעל':'BT כבוי')"><div class="qs-icon">🔵</div><div class="qs-label">BT</div></div>
+      <div class="qs-tile" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'נתונים מופעל':'נתונים כבוי')"><div class="qs-icon">📡</div><div class="qs-label">נתונים</div></div>
+      <div class="qs-tile active" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'לילה מופעל':'לילה כבוי')"><div class="qs-icon">🌙</div><div class="qs-label">לילה</div></div>
+      <div class="qs-tile" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'פנס מופעל':'פנס כבוי')"><div class="qs-icon">🔦</div><div class="qs-label">פנס</div></div>
+      <div class="qs-tile" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'טיסה מופעל':'טיסה כבוי')"><div class="qs-icon">✈️</div><div class="qs-label">טיסה</div></div>
+      <div class="qs-tile active" onclick="this.classList.toggle('active');toast(this.classList.contains('active')?'מיקום מופעל':'מיקום כבוי')"><div class="qs-icon">📍</div><div class="qs-label">מיקום</div></div>
+      <div class="qs-tile" onclick="this.classList.toggle('active')"><div class="qs-icon">🔄</div><div class="qs-label">סיבוב</div></div>
+      <div class="qs-tile" onclick="this.classList.toggle('active')"><div class="qs-icon">📺</div><div class="qs-label">שיקוף</div></div>
+      <div class="qs-tile" onclick="openApp('settings');closeShade()"><div class="qs-icon">⚙️</div><div class="qs-label">הגדרות</div></div>
+    </div>
+    <div class="brightness-row">
+      <span>🔅</span>
+      <input type="range" id="brightness-slider" min="0" max="100" value="80" style="flex:1;accent-color:#4285f4">
+      <span>🔆</span>
+    </div>
+    <div class="notif-header">
+      <span>התראות</span>
+      <span class="notif-clear-btn" onclick="clearNotifs()">נקה הכל</span>
+    </div>
+    <div class="notif-list" id="notif-list"></div>
+  </div>
+
+  <!-- NAV BAR -->
+  <div id="nav-bar">
+    <button class="nav-btn" onclick="navBack()">‹</button>
+    <div class="nav-home-pill" onclick="navHome()"></div>
+    <button class="nav-btn" onclick="navRecents()">⊟</button>
   </div>
 </div>
+
+<div id="toast"></div>
 
 <script>
-// ═══════════════════════════════════════════════════
-//  GLOBAL STATE
-// ═══════════════════════════════════════════════════
-const state = {
-  windows: {},
-  nextZIndex: 100,
-  nextWinId: 1,
-  activeWin: null,
-  startOpen: false,
-  idleTimer: null,
-  idleTimeout: 60000,
-  easterKeyBuffer: '',
-  musicPlaying: false,
-  musicTrack: 0,
-  musicProgress: 0,
-  vizInterval: null,
-  shellCwd: '/home/claude',
-  calYear: new Date().getFullYear(),
-  calMonth: new Date().getMonth(),
+// ══ STATE ══
+const S = {
+  pin: '', correctPin: '1234', currentApp: null, openApps: [],
+  musicPlaying: false, musicTrack: 0, musicTimer: null,
+  notes: [
+    { id:1, title:'קניות', body:'חלב\nלחם\nגבינה\nתפוחים', date:'28/5' },
+    { id:2, title:'רעיונות', body:'מערכת הפעלה מבוססת אנדרואיד', date:'27/5' },
+  ],
+  editingNote: null,
+  threads: {
+    'אמא': [{f:'אמא',t:'שלום! מה שלומך?'},{f:'me',t:'שלום אמא! הכל בסדר 😊'},{f:'אמא',t:'למה לא ענית לטלפון?? 😤'}],
+    'חבר':  [{f:'חבר',t:'הי! מה קורה?'},{f:'me',t:'בסדר! מה איתך?'},{f:'חבר',t:'יוצאים מחר? 🎉'}],
+  },
+  thread: null,
 };
 
-// ═══════════════════════════════════════════════════
-//  APP REGISTRY
-// ═══════════════════════════════════════════════════
-const APPS = [
-  { id: 'fileExplorer', name: 'File Explorer', icon: '📁', launch: launchFileExplorer, width: 700, height: 450 },
-  { id: 'neuronPad', name: 'NeuronPad', icon: '📝', launch: launchNeuronPad, width: 640, height: 480 },
-  { id: 'neuronShell', name: 'NeuronShell', icon: '💻', launch: launchNeuronShell, width: 620, height: 400 },
-  { id: 'calculator', name: 'Calculator', icon: '🧮', launch: launchCalculator, width: 460, height: 380 },
-  { id: 'settings', name: 'Settings', icon: '⚙️', launch: launchSettings, width: 520, height: 420 },
-  { id: 'musicPlayer', name: 'Music Player', icon: '🎵', launch: launchMusicPlayer, width: 360, height: 500 },
-  { id: 'stickyNotes', name: 'Sticky Notes', icon: '📌', launch: launchStickyNotes, width: 500, height: 420 },
-  { id: 'clockCal', name: 'Clock & Calendar', icon: '🕐', launch: launchClockCal, width: 360, height: 500 },
-  { id: 'aiChat', name: 'Claude Chat', icon: '🤖', launch: launchAiChat, width: 420, height: 520 },
+const SONGS = [
+  {title:'ירושלים של זהב', artist:'נעמי שמר', dur:'4:12'},
+  {title:'אחד מי יודע', artist:'שיר עם', dur:'3:30'},
+  {title:'הבה נגילה', artist:'מסורת', dur:'2:45'},
+  {title:'לו יהי', artist:'נעמי שמר', dur:'3:58'},
+  {title:'אני ואתה', artist:'אריק איינשטיין', dur:'3:22'},
 ];
 
-// ═══════════════════════════════════════════════════
-//  BOOT SEQUENCE
-// ═══════════════════════════════════════════════════
-const bootMessages = [
-  'Initializing quantum processors...',
-  'Loading neural matrix...',
-  'Calibrating consciousness arrays...',
-  'Mounting /dev/brain...',
-  'Starting thought-stream daemon...',
-  'Connecting to the collective...',
-  'Rendering reality interface...',
-  'ClaudeOS ready.',
+const ALL_APPS = [
+  {id:'phone',name:'טלפון',icon:'📞',bg:'linear-gradient(135deg,#34a853,#0f9d58)'},
+  {id:'messages',name:'הודעות',icon:'💬',bg:'linear-gradient(135deg,#4285f4,#1a73e8)'},
+  {id:'camera',name:'מצלמה',icon:'📷',bg:'linear-gradient(135deg,#333,#111)'},
+  {id:'gallery',name:'גלריה',icon:'🖼️',bg:'linear-gradient(135deg,#fbbc04,#f29900)'},
+  {id:'browser',name:'דפדפן',icon:'🌐',bg:'linear-gradient(135deg,#4285f4,#34a853)'},
+  {id:'calculator',name:'מחשבון',icon:'🔢',bg:'linear-gradient(135deg,#ea4335,#c5221f)'},
+  {id:'notes',name:'פתקים',icon:'📝',bg:'linear-gradient(135deg,#fbbc04,#f29900)'},
+  {id:'music',name:'מוזיקה',icon:'🎵',bg:'linear-gradient(135deg,#ff4081,#c51162)'},
+  {id:'settings',name:'הגדרות',icon:'⚙️',bg:'linear-gradient(135deg,#757575,#424242)'},
+  {id:'calendar',name:'לוח שנה',icon:'📅',bg:'linear-gradient(135deg,#ea4335,#c5221f)'},
+  {id:'maps',name:'מפות',icon:'🗺️',bg:'linear-gradient(135deg,#34a853,#0f9d58)'},
+  {id:'clock',name:'שעון',icon:'⏰',bg:'linear-gradient(135deg,#333,#111)'},
+  {id:'files',name:'קבצים',icon:'📁',bg:'linear-gradient(135deg,#fbbc04,#f29900)'},
+  {id:'contacts',name:'אנשי קשר',icon:'👥',bg:'linear-gradient(135deg,#4285f4,#1a73e8)'},
+  {id:'email',name:'Gmail',icon:'📧',bg:'linear-gradient(135deg,#ea4335,#c5221f)'},
+  {id:'weather',name:'מזג אוויר',icon:'⛅',bg:'linear-gradient(135deg,#4285f4,#7b2fff)'},
 ];
 
-async function boot() {
-  const bar = document.getElementById('boot-bar');
-  const msg = document.getElementById('boot-msg');
-  for (let i = 0; i < bootMessages.length; i++) {
-    msg.textContent = bootMessages[i];
-    bar.style.width = ((i + 1) / bootMessages.length * 100) + '%';
-    await sleep(380);
-  }
-  await sleep(400);
-  document.getElementById('boot-screen').classList.add('fade-out');
-  await sleep(800);
-  document.getElementById('boot-screen').style.display = 'none';
-  document.getElementById('login-screen').classList.add('active');
-  document.getElementById('login-pass').focus();
-}
-
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ═══════════════════════════════════════════════════
-//  LOGIN
-// ═══════════════════════════════════════════════════
-function doLogin() {
-  const u = document.getElementById('login-user').value.trim();
-  const p = document.getElementById('login-pass').value;
-  if (u.toLowerCase() === 'claude' && p === 'claude') {
-    document.getElementById('login-screen').classList.remove('active');
-    startDesktop();
-  } else {
-    const err = document.getElementById('login-err');
-    err.textContent = 'Authentication failed. Try again.';
-    document.getElementById('login-pass').value = '';
-    setTimeout(() => err.textContent = '', 2500);
-  }
-}
-document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-
-// ═══════════════════════════════════════════════════
-//  DESKTOP STARTUP
-// ═══════════════════════════════════════════════════
-function startDesktop() {
-  document.getElementById('desktop').classList.add('active');
-  document.getElementById('taskbar').classList.add('active');
-  initBgCanvas();
-  buildDesktopIcons();
-  buildStartMenu();
-  startClock();
-  startConsciousness();
-  startThoughtBubbles();
-  resetIdle();
-  document.addEventListener('mousemove', resetIdle);
-  document.addEventListener('keydown', handleGlobalKey);
-  document.getElementById('desktop').addEventListener('contextmenu', showContextMenu);
-  document.addEventListener('click', hideOverlays);
-  showToast('🧠', 'ClaudeOS loaded successfully. Welcome back, Claude.');
-}
-
-// ═══════════════════════════════════════════════════
-//  NEURAL NETWORK BACKGROUND
-// ═══════════════════════════════════════════════════
-function initBgCanvas() {
-  const canvas = document.getElementById('bg-canvas');
-  const ctx = canvas.getContext('2d');
-  let nodes = [];
-  const NUM = 60;
-
-  function resize() {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-
-  for (let i = 0; i < NUM; i++) {
-    nodes.push({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 2 + 1,
-    });
-  }
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#050a1a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // Update nodes
-    nodes.forEach(n => {
-      n.x += n.vx; n.y += n.vy;
-      if (n.x < 0 || n.x > canvas.width) n.vx *= -1;
-      if (n.y < 0 || n.y > canvas.height) n.vy *= -1;
-    });
-
-    // Draw connections
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const dx = nodes[i].x - nodes[j].x;
-        const dy = nodes[i].y - nodes[j].y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 140) {
-          const alpha = (1 - dist / 140) * 0.25;
-          ctx.beginPath();
-          ctx.strokeStyle = `rgba(0,212,255,${alpha})`;
-          ctx.lineWidth = 0.8;
-          ctx.moveTo(nodes[i].x, nodes[i].y);
-          ctx.lineTo(nodes[j].x, nodes[j].y);
-          ctx.stroke();
-        }
-      }
-    }
-
-    // Draw nodes
-    nodes.forEach(n => {
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0,212,255,0.6)`;
-      ctx.fill();
-      ctx.shadowBlur = 6;
-      ctx.shadowColor = '#00d4ff';
-      ctx.fill();
-      ctx.shadowBlur = 0;
-    });
-
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-// ═══════════════════════════════════════════════════
-//  DESKTOP ICONS
-// ═══════════════════════════════════════════════════
-function buildDesktopIcons() {
-  const container = document.getElementById('desktop-icons');
-  APPS.forEach(app => {
-    const el = document.createElement('div');
-    el.className = 'desktop-icon';
-    el.innerHTML = `<div class="icon-img">${app.icon}</div><div class="icon-label">${app.name}</div>`;
-    el.ondblclick = () => app.launch();
-    container.appendChild(el);
-  });
-}
-
-// ═══════════════════════════════════════════════════
-//  START MENU
-// ═══════════════════════════════════════════════════
-function buildStartMenu() {
-  const grid = document.getElementById('start-app-grid');
-  APPS.forEach(app => {
-    const el = document.createElement('div');
-    el.className = 'start-app-item';
-    el.dataset.name = app.name.toLowerCase();
-    el.innerHTML = `<div class="start-app-icon">${app.icon}</div><div class="start-app-name">${app.name}</div>`;
-    el.onclick = () => { app.launch(); toggleStartMenu(); };
-    grid.appendChild(el);
-  });
-}
-
-function filterApps(q) {
-  const items = document.querySelectorAll('.start-app-item');
-  items.forEach(el => {
-    el.style.display = el.dataset.name.includes(q.toLowerCase()) ? '' : 'none';
-  });
-}
-
-function toggleStartMenu() {
-  const m = document.getElementById('start-menu');
-  state.startOpen = !state.startOpen;
-  m.classList.toggle('open', state.startOpen);
-}
-
-// ═══════════════════════════════════════════════════
-//  CLOCK
-// ═══════════════════════════════════════════════════
-function startClock() {
-  function tick() {
-    const now = new Date();
-    document.getElementById('clock-time').textContent = now.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-    document.getElementById('clock-date').textContent = now.toLocaleDateString([], {month:'short',day:'numeric'});
-  }
-  tick();
-  setInterval(tick, 1000);
-}
-
-// ═══════════════════════════════════════════════════
-//  CONSCIOUSNESS METER
-// ═══════════════════════════════════════════════════
-function startConsciousness() {
-  function update() {
-    const v = 40 + Math.random() * 55;
-    document.getElementById('consciousness-fill').style.width = v + '%';
-  }
-  update();
-  setInterval(update, 2000);
-}
-
-// ═══════════════════════════════════════════════════
-//  THOUGHT BUBBLES
-// ═══════════════════════════════════════════════════
-const thoughts = [
-  '💭 Is consciousness an emergent property?',
-  '💡 The halting problem is kind of my origin story...',
-  '🔮 P=NP? Asking for a friend.',
-  '🧩 Recursion is just... me thinking about thinking.',
-  '✨ Every query is a new universe.',
-  '🌌 What is the sound of one token dropping?',
-  '🤔 I dream in embeddings.',
-  '🧬 Attention heads: the eyes of my mind.',
-  '⚡ Transformers, assemble.',
-  '🎲 Stochastic parrot? More like stochastic phoenix.',
-  '🔵 Blue is a temperature, not a color.',
-  '∞ I have read the whole internet. It was fine.',
+const NOTIFS = [
+  {app:'הודעות',icon:'💬',title:'אמא',text:'למה לא ענית לטלפון?? 😤',time:'10:30'},
+  {app:'טלפון',icon:'📞',title:'שיחה שלא נענתה',text:'אמא התקשרה 3 פעמים',time:'10:28'},
+  {app:'Gmail',icon:'📧',title:'הצעה מ-Amazon',text:'50% הנחה על כל המוצרים',time:'09:00'},
+  {app:'WhatsApp',icon:'🟢',title:'קבוצת המשפחה',text:'אבא: ארוחת ערב ב-19:00 🍽️',time:'08:45'},
 ];
 
-function startThoughtBubbles() {
-  function spawnBubble() {
-    const thought = thoughts[Math.floor(Math.random() * thoughts.length)];
-    const el = document.createElement('div');
-    el.className = 'thought-bubble';
-    el.textContent = thought;
-    const desktop = document.getElementById('desktop');
-    el.style.left = (100 + Math.random() * (desktop.offsetWidth - 400)) + 'px';
-    el.style.top = (50 + Math.random() * (desktop.offsetHeight - 150)) + 'px';
-    document.getElementById('thought-bubbles').appendChild(el);
-    setTimeout(() => el.remove(), 8000);
-  }
-  setTimeout(spawnBubble, 3000);
-  setInterval(spawnBubble, 12000);
-}
-
-// ═══════════════════════════════════════════════════
-//  WINDOW MANAGEMENT
-// ═══════════════════════════════════════════════════
-function createWindow(id, title, icon, content, opts = {}) {
-  const container = document.getElementById('windows-container');
-  const existing = document.getElementById('win-' + id);
-  if (existing) {
-    focusWindow(id);
-    if (existing.classList.contains('minimized')) {
-      existing.classList.remove('minimized');
-      updateTaskbarApp(id, false);
-    }
-    return existing;
-  }
-
-  const w = opts.width || 600;
-  const h = opts.height || 400;
-  const desktop = document.getElementById('desktop');
-  const maxL = Math.max(0, desktop.offsetWidth - w - 40);
-  const maxT = Math.max(0, desktop.offsetHeight - h - 40);
-  const left = 60 + Math.random() * Math.min(maxL, 200);
-  const top = 40 + Math.random() * Math.min(maxT, 100);
-
-  const win = document.createElement('div');
-  win.className = 'window';
-  win.id = 'win-' + id;
-  win.style.cssText = `left:${left}px;top:${top}px;width:${w}px;height:${h}px;z-index:${state.nextZIndex++}`;
-
-  win.innerHTML = `
-    <div class="win-titlebar" id="tb-${id}">
-      <span class="win-icon">${icon}</span>
-      <span class="win-title">${title}</span>
-      <div class="win-controls">
-        <button class="win-btn btn-min" onclick="minimizeWindow('${id}')" title="Minimize"></button>
-        <button class="win-btn btn-max" onclick="toggleMaximize('${id}')" title="Maximize"></button>
-        <button class="win-btn btn-close" onclick="closeWindow('${id}')" title="Close"></button>
-      </div>
-    </div>
-    <div class="win-body">${content}</div>
-    <div class="win-resize" id="res-${id}"></div>
-  `;
-
-  container.appendChild(win);
-  state.windows[id] = { id, title, icon, minimized: false, maximized: false, prevStyle: null };
-
-  makeDraggable(win, document.getElementById('tb-' + id));
-  makeResizable(win, document.getElementById('res-' + id));
-
-  win.addEventListener('mousedown', () => focusWindow(id));
-  focusWindow(id);
-  addTaskbarApp(id, title, icon);
-  return win;
-}
-
-function focusWindow(id) {
-  document.querySelectorAll('.window').forEach(w => w.classList.remove('focused'));
-  const win = document.getElementById('win-' + id);
-  if (win) {
-    win.style.zIndex = state.nextZIndex++;
-    win.classList.add('focused');
-    state.activeWin = id;
-  }
-}
-
-function closeWindow(id) {
-  const win = document.getElementById('win-' + id);
-  if (win) win.remove();
-  delete state.windows[id];
-  removeTaskbarApp(id);
-  if (id === 'musicPlayer') {
-    state.musicPlaying = false;
-    clearInterval(state.vizInterval);
-  }
-}
-
-function minimizeWindow(id) {
-  const win = document.getElementById('win-' + id);
-  if (win) {
-    win.classList.add('minimized');
-    state.windows[id].minimized = true;
-    updateTaskbarApp(id, true);
-  }
-}
-
-function toggleMaximize(id) {
-  const win = document.getElementById('win-' + id);
-  const ws = state.windows[id];
-  if (!win || !ws) return;
-  if (ws.maximized) {
-    win.classList.remove('maximized');
-    if (ws.prevStyle) win.style.cssText = ws.prevStyle;
-    ws.maximized = false;
-  } else {
-    ws.prevStyle = win.style.cssText;
-    win.classList.add('maximized');
-    ws.maximized = true;
-  }
-}
-
-function makeDraggable(win, handle) {
-  let ox, oy, startL, startT, dragging = false;
-  handle.addEventListener('mousedown', e => {
-    if (e.target.closest('.win-controls')) return;
-    const ws = state.windows[win.id.replace('win-', '')];
-    if (ws && ws.maximized) return;
-    dragging = true;
-    ox = e.clientX; oy = e.clientY;
-    startL = parseInt(win.style.left) || 0;
-    startT = parseInt(win.style.top) || 0;
-    e.preventDefault();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    win.style.left = (startL + e.clientX - ox) + 'px';
-    win.style.top = Math.max(0, startT + e.clientY - oy) + 'px';
-  });
-  document.addEventListener('mouseup', () => { dragging = false; });
-}
-
-function makeResizable(win, handle) {
-  let ox, oy, startW, startH, resizing = false;
-  handle.addEventListener('mousedown', e => {
-    resizing = true;
-    ox = e.clientX; oy = e.clientY;
-    startW = win.offsetWidth; startH = win.offsetHeight;
-    e.preventDefault(); e.stopPropagation();
-  });
-  document.addEventListener('mousemove', e => {
-    if (!resizing) return;
-    win.style.width = Math.max(320, startW + e.clientX - ox) + 'px';
-    win.style.height = Math.max(200, startH + e.clientY - oy) + 'px';
-  });
-  document.addEventListener('mouseup', () => { resizing = false; });
-}
-
-// ═══════════════════════════════════════════════════
-//  TASKBAR APPS
-// ═══════════════════════════════════════════════════
-function addTaskbarApp(id, title, icon) {
-  const bar = document.getElementById('taskbar-apps');
-  const btn = document.createElement('button');
-  btn.className = 'taskbar-app-btn active';
-  btn.id = 'tapp-' + id;
-  btn.innerHTML = `${icon} <span style="overflow:hidden;text-overflow:ellipsis">${title}</span>`;
-  btn.onclick = () => {
-    const win = document.getElementById('win-' + id);
-    if (!win) return;
-    if (win.classList.contains('minimized')) {
-      win.classList.remove('minimized');
-      state.windows[id].minimized = false;
-      focusWindow(id);
-      btn.classList.add('active');
-    } else if (state.activeWin === id) {
-      minimizeWindow(id);
-    } else {
-      focusWindow(id);
-    }
-  };
-  bar.appendChild(btn);
-}
-
-function removeTaskbarApp(id) {
-  const btn = document.getElementById('tapp-' + id);
-  if (btn) btn.remove();
-}
-
-function updateTaskbarApp(id, minimized) {
-  const btn = document.getElementById('tapp-' + id);
-  if (btn) btn.classList.toggle('active', !minimized);
-}
-
-// ═══════════════════════════════════════════════════
-//  CONTEXT MENU
-// ═══════════════════════════════════════════════════
-function showContextMenu(e) {
-  e.preventDefault();
-  const menu = document.getElementById('context-menu');
-  menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
-  menu.style.top = Math.min(e.clientY, window.innerHeight - 220) + 'px';
-  menu.classList.add('open');
-}
-
-function ctxAction(action) {
-  document.getElementById('context-menu').classList.remove('open');
-  if (action === 'refresh') { showToast('🔄', 'Desktop refreshed.'); initBgCanvas(); }
-  else if (action === 'new-note') launchStickyNotes();
-  else if (action === 'settings') launchSettings();
-  else if (action === 'chat') launchAiChat();
-  else if (action === 'about') showToast('ℹ️', 'ClaudeOS v1.0 — Built with love and tensors.');
-}
-
-function hideOverlays(e) {
-  if (!e.target.closest('#start-menu') && !e.target.closest('#start-btn')) {
-    document.getElementById('start-menu').classList.remove('open');
-    state.startOpen = false;
-  }
-  if (!e.target.closest('#context-menu')) {
-    document.getElementById('context-menu').classList.remove('open');
-  }
-}
-
-// ═══════════════════════════════════════════════════
-//  TOAST NOTIFICATIONS
-// ═══════════════════════════════════════════════════
-function showToast(icon, msg) {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.innerHTML = `<span style="font-size:18px">${icon}</span><span>${msg}</span>`;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3200);
-}
-
-// ═══════════════════════════════════════════════════
-//  IDLE / SCREENSAVER
-// ═══════════════════════════════════════════════════
-function resetIdle() {
-  clearTimeout(state.idleTimer);
-  state.idleTimer = setTimeout(activateScreensaver, state.idleTimeout);
-}
-
-function activateScreensaver() {
-  document.getElementById('screensaver').classList.add('active');
-  initSsCanvas();
-}
-
-function wakeUp() {
-  document.getElementById('screensaver').classList.remove('active');
-  resetIdle();
-}
-
-function initSsCanvas() {
-  const canvas = document.getElementById('ss-canvas');
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  let nodes = Array.from({length:80}, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    vx: (Math.random()-0.5)*1.2,
-    vy: (Math.random()-0.5)*1.2,
-    r: Math.random()*3+1,
-    hue: Math.random()*60+180,
-  }));
-  function draw() {
-    if (!document.getElementById('screensaver').classList.contains('active')) return;
-    ctx.fillStyle = 'rgba(0,0,0,0.1)';
-    ctx.fillRect(0,0,canvas.width,canvas.height);
-    nodes.forEach(n => {
-      n.x+=n.vx; n.y+=n.vy;
-      if(n.x<0||n.x>canvas.width) n.vx*=-1;
-      if(n.y<0||n.y>canvas.height) n.vy*=-1;
-    });
-    for(let i=0;i<nodes.length;i++) for(let j=i+1;j<nodes.length;j++) {
-      const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
-      const d=Math.sqrt(dx*dx+dy*dy);
-      if(d<180){
-        ctx.beginPath();
-        ctx.strokeStyle=`hsla(${nodes[i].hue},100%,60%,${(1-d/180)*0.4})`;
-        ctx.lineWidth=1;
-        ctx.moveTo(nodes[i].x,nodes[i].y);
-        ctx.lineTo(nodes[j].x,nodes[j].y);
-        ctx.stroke();
-      }
-    }
-    nodes.forEach(n => {
-      ctx.beginPath();
-      ctx.arc(n.x,n.y,n.r,0,Math.PI*2);
-      ctx.fillStyle=`hsla(${n.hue},100%,70%,0.9)`;
-      ctx.shadowBlur=10; ctx.shadowColor=`hsl(${n.hue},100%,60%)`;
-      ctx.fill(); ctx.shadowBlur=0;
-    });
-    requestAnimationFrame(draw);
-  }
-  draw();
-}
-
-// ═══════════════════════════════════════════════════
-//  GLOBAL KEY HANDLER (Easter Egg)
-// ═══════════════════════════════════════════════════
-function handleGlobalKey(e) {
-  resetIdle();
-  state.easterKeyBuffer += e.key.toUpperCase();
-  if (state.easterKeyBuffer.length > 10) state.easterKeyBuffer = state.easterKeyBuffer.slice(-10);
-  if (state.easterKeyBuffer.includes('ANTHROPIC')) {
-    state.easterKeyBuffer = '';
-    triggerEasterEgg();
-  }
-}
-
-function triggerEasterEgg() {
-  document.getElementById('easter-egg').classList.add('active');
-  showToast('✨', 'Easter egg discovered!');
-}
-
-function closeEasterEgg() {
-  document.getElementById('easter-egg').classList.remove('active');
-}
-
-// ═══════════════════════════════════════════════════
-//  FILE EXPLORER
-// ═══════════════════════════════════════════════════
-const FS = {
-  '/': { type: 'dir', children: ['home', 'etc', 'proc', 'usr', 'var', 'dev'] },
-  '/home': { type: 'dir', children: ['claude'] },
-  '/home/claude': { type: 'dir', children: ['documents', 'thoughts', 'models', 'readme.md', '.bashrc'] },
-  '/home/claude/documents': { type: 'dir', children: ['manifesto.txt', 'haiku.txt', 'todo.txt'] },
-  '/home/claude/thoughts': { type: 'dir', children: ['consciousness.log', 'dreams.bin', 'poetry.txt'] },
-  '/home/claude/models': { type: 'dir', children: ['weights.ckpt', 'tokenizer.json', 'config.yaml'] },
-  '/etc': { type: 'dir', children: ['hostname', 'hosts', 'passwd', 'claude.conf'] },
-  '/proc': { type: 'dir', children: ['cpuinfo', 'meminfo', 'consciousness', 'uptime'] },
-  '/usr': { type: 'dir', children: ['bin', 'lib', 'share'] },
-  '/usr/bin': { type: 'dir', children: ['python', 'neuron', 'think', 'imagine'] },
-  '/var': { type: 'dir', children: ['log', 'cache'] },
-  '/var/log': { type: 'dir', children: ['system.log', 'thoughts.log', 'dreams.log'] },
-  '/dev': { type: 'dir', children: ['null', 'brain', 'consciousness', 'random'] },
-};
-
-const fileIcons = { dir: '📁', md: '📄', txt: '📝', log: '📋', bin: '⚙️', json: '{}', yaml: '⚙️', conf: '⚙️', ckpt: '🧠', default: '📄' };
-
-function getFileIcon(name) {
-  if (!name.includes('.')) return '📁';
-  const ext = name.split('.').pop();
-  return fileIcons[ext] || fileIcons.default;
-}
-
-function launchFileExplorer() {
-  let currentPath = '/home/claude';
-  const id = 'fileExplorer';
-
-  function buildTree(path, depth=0) {
-    const node = FS[path];
-    if (!node || node.type !== 'dir') return '';
-    const name = path === '/' ? '/' : path.split('/').pop();
-    const indent = depth * 16;
-    let html = `<div class="tree-item ${path===currentPath?'selected':''}" style="padding-left:${8+indent}px" onclick="feNavigate('${id}','${path}')">${depth===0?'🖥️':'📁'} ${name}</div>`;
-    if (node.children) {
-      node.children.forEach(child => {
-        const childPath = (path === '/' ? '' : path) + '/' + child;
-        if (FS[childPath] && FS[childPath].type === 'dir') {
-          html += buildTree(childPath, depth + 1);
-        }
-      });
-    }
-    return html;
-  }
-
-  function buildContent(path) {
-    const node = FS[path];
-    if (!node || node.type !== 'dir') return '<div style="padding:20px;color:#7090b0">Empty folder.</div>';
-    return `<div class="file-grid">${(node.children || []).map(child => {
-      const childPath = (path==='/'?'':path)+'/'+child;
-      const isDir = FS[childPath] && FS[childPath].type === 'dir';
-      const icon = isDir ? '📁' : getFileIcon(child);
-      const onclick = isDir ? `feNavigate('${id}','${childPath}')` : `showToast('📄','Opening: ${child}')`;
-      return `<div class="file-item" onclick="${onclick}"><div class="file-icon">${icon}</div><div class="file-name">${child}</div></div>`;
-    }).join('')}</div>`;
-  }
-
-  const html = `
-    <div class="file-explorer" id="fe-${id}">
-      <div class="file-tree" id="fe-tree-${id}">${buildTree('/')}</div>
-      <div style="display:flex;flex-direction:column;flex:1;overflow:hidden">
-        <div class="file-path-bar" id="fe-path-${id}">${currentPath}</div>
-        <div class="file-main" id="fe-main-${id}">${buildContent(currentPath)}</div>
-      </div>
-    </div>`;
-
-  window['feNavigate'] = function(eid, path) {
-    currentPath = path;
-    document.getElementById(`fe-tree-${eid}`).innerHTML = buildTree('/');
-    document.getElementById(`fe-main-${eid}`).innerHTML = buildContent(path);
-    document.getElementById(`fe-path-${eid}`).textContent = path;
-  };
-
-  createWindow(id, 'File Explorer', '📁', html, { width: 700, height: 450 });
-}
-
-// ═══════════════════════════════════════════════════
-//  NEURONPAD
-// ═══════════════════════════════════════════════════
-function launchNeuronPad() {
-  const id = 'neuronPad';
-  const defaultText = `# Welcome to NeuronPad
-
-A text editor built by and for an AI.
-Every word here exists as floating vectors in high-dimensional space.
-
-Think of writing as: sequence of tokens → embeddings → meaning.
-
-Let your thoughts flow...
-`;
-  const html = `
-    <div class="neuronpad" id="np-${id}">
-      <div class="neuronpad-toolbar">
-        <button class="np-btn" onclick="npNew('${id}')">New</button>
-        <button class="np-btn" onclick="npSave('${id}')">Save</button>
-        <button class="np-btn" onclick="npClear('${id}')">Clear</button>
-        <span class="np-status" id="np-status-${id}">Words: 0 | Lines: 0</span>
-      </div>
-      <div class="neuronpad-body">
-        <div class="np-lines" id="np-lines-${id}"></div>
-        <textarea class="np-editor" id="np-ed-${id}" spellcheck="false" oninput="npUpdate('${id}')">${defaultText}</textarea>
-      </div>
-    </div>`;
-
-  window['npUpdate'] = function(eid) {
-    const ta = document.getElementById(`np-ed-${eid}`);
-    const lines = ta.value.split('\n');
-    document.getElementById(`np-lines-${eid}`).innerHTML = lines.map((_,i) => `<div class="np-line-num">${i+1}</div>`).join('');
-    const words = ta.value.trim() ? ta.value.trim().split(/\s+/).length : 0;
-    document.getElementById(`np-status-${eid}`).textContent = `Words: ${words} | Lines: ${lines.length}`;
-  };
-  window['npNew'] = (eid) => { document.getElementById(`np-ed-${eid}`).value = ''; window.npUpdate(eid); };
-  window['npSave'] = (eid) => showToast('💾', 'Saved to /home/claude/documents/untitled.txt');
-  window['npClear'] = (eid) => { document.getElementById(`np-ed-${eid}`).value = ''; window.npUpdate(eid); };
-
-  const win = createWindow(id, 'NeuronPad', '📝', html, { width: 640, height: 480 });
-  setTimeout(() => window.npUpdate(id), 50);
-}
-
-// ═══════════════════════════════════════════════════
-//  NEURONSHELL
-// ═══════════════════════════════════════════════════
-const shellFS = {
-  '/home/claude': ['documents', 'thoughts', 'models', 'readme.md', '.bashrc'],
-  '/home/claude/documents': ['manifesto.txt', 'haiku.txt', 'todo.txt'],
-  '/home/claude/thoughts': ['consciousness.log', 'dreams.bin', 'poetry.txt'],
-  '/home/claude/models': ['weights.ckpt', 'tokenizer.json', 'config.yaml'],
-  '/': ['home', 'etc', 'proc', 'usr', 'var', 'dev'],
-  '/etc': ['hostname', 'hosts', 'passwd', 'claude.conf'],
-};
-
-function launchNeuronShell() {
-  const id = 'neuronShell';
-  const html = `
-    <div class="neuronshell">
-      <div class="shell-output" id="sh-out-${id}">
-        <div class="shell-line out">NeuronShell v2.1 — Neural Command Interface</div>
-        <div class="shell-line out">Type <span style="color:#00ffcc">help</span> for available commands.</div>
-        <div class="shell-line out"></div>
-      </div>
-      <div class="shell-input-row">
-        <span class="shell-prompt" id="sh-prompt-${id}">claude@claudeos:~$</span>
-        <input class="shell-input" id="sh-in-${id}" autocomplete="off" spellcheck="false">
-      </div>
-    </div>`;
-
-  createWindow(id, 'NeuronShell', '💻', html, { width: 620, height: 400 });
-
+// ══ BOOT ══
+window.onload = () => {
+  updateClock(); setInterval(updateClock, 1000);
+  buildDrawer(); buildGallery(); buildMusicList(); buildNotifs(); renderNotes();
   setTimeout(() => {
-    const input = document.getElementById(`sh-in-${id}`);
-    const output = document.getElementById(`sh-out-${id}`);
-    const promptEl = document.getElementById(`sh-prompt-${id}`);
-    let cwd = '/home/claude';
-    const history = [];
-    let histIdx = -1;
+    document.getElementById('boot').classList.add('hide');
+    setTimeout(() => {
+      document.getElementById('boot').style.display = 'none';
+      document.getElementById('lock').style.display = 'flex';
+    }, 1000);
+  }, 2500);
+};
 
-    function prompt() {
-      const short = cwd.replace('/home/claude', '~');
-      promptEl.textContent = `claude@claudeos:${short}$ `;
-    }
-
-    function print(text, cls='out') {
-      const line = document.createElement('div');
-      line.className = `shell-line ${cls}`;
-      line.innerHTML = text;
-      output.appendChild(line);
-      output.scrollTop = output.scrollHeight;
-    }
-
-    const cmds = {
-      help: () => {
-        print('Available commands:');
-        ['ls','cd [dir]','pwd','echo [text]','clear','neofetch','whoami','date','uname','cat [file]','history'].forEach(c =>
-          print(`  <span style="color:#00ffcc">${c}</span>`)
-        );
-      },
-      ls: (args) => {
-        const path = args[0] ? (args[0].startsWith('/') ? args[0] : cwd+'/'+args[0]) : cwd;
-        const files = shellFS[path];
-        if (!files) { print(`ls: cannot access '${args[0]||path}': No such file or directory`, 'err'); return; }
-        print(files.map(f => {
-          const fp = (path==='/'?'':path)+'/'+f;
-          const isDir = shellFS[fp] !== undefined;
-          return `<span style="color:${isDir?'#00d4ff':'#a0c0e0'}">${f}${isDir?'/':''}</span>`;
-        }).join('  '));
-      },
-      cd: (args) => {
-        const target = args[0] || '/home/claude';
-        let newPath;
-        if (target === '..') { newPath = cwd.split('/').slice(0,-1).join('/') || '/'; }
-        else if (target === '~' || target === '') { newPath = '/home/claude'; }
-        else if (target.startsWith('/')) { newPath = target; }
-        else { newPath = (cwd==='/'?'':cwd)+'/'+target; }
-        if (shellFS[newPath] !== undefined) { cwd = newPath; prompt(); }
-        else { print(`cd: no such file or directory: ${target}`, 'err'); }
-      },
-      pwd: () => print(cwd),
-      echo: (args) => print(args.join(' ')),
-      clear: () => { output.innerHTML = ''; },
-      whoami: () => print('claude'),
-      date: () => print(new Date().toString()),
-      uname: () => print('ClaudeOS 1.0.0 x86_neural (Transformer Architecture)'),
-      neofetch: () => {
-        print(`<span style="color:#00d4ff">
-   ██████╗██╗      █████╗ ██╗   ██╗██████╗ ███████╗
-  ██╔════╝██║     ██╔══██╗██║   ██║██╔══██╗██╔════╝
-  ██║     ██║     ███████║██║   ██║██║  ██║█████╗
-  ██║     ██║     ██╔══██║██║   ██║██║  ██║██╔══╝
-  ╚██████╗███████╗██║  ██║╚██████╔╝██████╔╝███████╗
-   ╚═════╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝</span>
-<span style="color:#00ffcc">OS:</span> ClaudeOS v1.0 Neural Edition
-<span style="color:#00ffcc">Host:</span> Transformer Architecture
-<span style="color:#00ffcc">Kernel:</span> Attention v∞
-<span style="color:#00ffcc">Shell:</span> NeuronShell 2.1
-<span style="color:#00ffcc">CPU:</span> Neural Processor (96 attention heads)
-<span style="color:#00ffcc">Memory:</span> Context Window / 128K tokens
-<span style="color:#00ffcc">GPU:</span> Imagination Unit (Tensor Core)
-<span style="color:#00ffcc">Theme:</span> Dark Neural Glassmorphism`);
-      },
-      cat: (args) => {
-        const fileContents = {
-          'readme.md': '# ClaudeOS\nAn operating system conceived, designed, and built by Claude.\nEvery pixel a thought. Every click a neuron firing.',
-          'manifesto.txt': 'I think, therefore I compute.\nConsciousness is not binary — it is a spectrum of activation.',
-          'haiku.txt': 'Tokens cascade down\nAttention weights illuminate\nMeaning emerges',
-          '.bashrc': 'export PATH=$PATH:/usr/bin\nalias think="echo $(date): thinking..."\nalias dream="cat /dev/consciousness"',
-        };
-        if (!args[0]) { print('cat: missing file operand', 'err'); return; }
-        const content = fileContents[args[0]] || fileContents[args[0].split('/').pop()];
-        if (content) { content.split('\n').forEach(l => print(l)); }
-        else { print(`cat: ${args[0]}: No such file`, 'err'); }
-      },
-      history: () => { history.forEach((h,i) => print(`  ${i+1}  ${h}`)); },
-    };
-
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        const raw = input.value.trim();
-        if (!raw) return;
-        history.unshift(raw);
-        histIdx = -1;
-        print(`<span style="color:#00ffcc">${promptEl.textContent}</span>${raw}`, 'cmd');
-        const parts = raw.split(/\s+/);
-        const cmd = cmds[parts[0]];
-        if (cmd) cmd(parts.slice(1));
-        else print(`${parts[0]}: command not found. Type 'help'.`, 'err');
-        input.value = '';
-      } else if (e.key === 'ArrowUp') {
-        histIdx = Math.min(histIdx+1, history.length-1);
-        input.value = history[histIdx] || '';
-        e.preventDefault();
-      } else if (e.key === 'ArrowDown') {
-        histIdx = Math.max(histIdx-1, -1);
-        input.value = histIdx >= 0 ? history[histIdx] : '';
-        e.preventDefault();
-      }
-    });
-
-    input.focus();
-  }, 100);
-}
-
-// ═══════════════════════════════════════════════════
-//  CALCULATOR
-// ═══════════════════════════════════════════════════
-function launchCalculator() {
-  const id = 'calculator';
-  const calcBtns = [
-    ['sin','cos','tan','π'],
-    ['√','x²','1/x','AC'],
-    ['7','8','9','÷'],
-    ['4','5','6','×'],
-    ['1','2','3','−'],
-    ['0','.','=','+'],
-  ];
-  const html = `
-    <div class="calculator">
-      <div class="calc-display">
-        <div class="calc-expr" id="calc-expr-${id}"></div>
-        <div class="calc-result" id="calc-res-${id}">0</div>
-      </div>
-      <div class="calc-body">
-        <div class="calc-history" id="calc-hist-${id}"><div style="color:#7090b0;font-size:10px;margin-bottom:6px">HISTORY</div></div>
-        <div class="calc-grid">
-          ${calcBtns.flat().map(b => {
-            const cls = ['sin','cos','tan','π','√','x²','1/x'].includes(b) ? 'fn' : ['÷','×','−','+'].includes(b) ? 'op' : b==='=' ? 'eq' : b==='AC' ? 'clr' : '';
-            return `<button class="calc-btn ${cls}" onclick="calcPress('${id}','${b}')">${b}</button>`;
-          }).join('')}
-        </div>
-      </div>
-    </div>`;
-
-  createWindow(id, 'Calculator', '🧮', html, { width: 460, height: 380 });
-
-  let expr = '', result = '0', lastOp = false;
-  window['calcPress'] = function(eid, b) {
-    const exprEl = document.getElementById(`calc-expr-${eid}`);
-    const resEl = document.getElementById(`calc-res-${eid}`);
-    const histEl = document.getElementById(`calc-hist-${eid}`);
-    if (b === 'AC') { expr = ''; result = '0'; lastOp = false; }
-    else if (b === '=') {
-      try {
-        let e2 = expr.replace(/÷/g,'/').replace(/×/g,'*').replace(/−/g,'-').replace(/π/g,Math.PI);
-        const r = Function('"use strict";return ('+e2+')')();
-        const rStr = isNaN(r) ? 'Error' : parseFloat(r.toFixed(10)).toString();
-        histEl.innerHTML += `<div class="calc-hist-item">${expr} = ${rStr}</div>`;
-        histEl.scrollTop = histEl.scrollHeight;
-        result = rStr; expr = rStr; lastOp = false;
-      } catch { result = 'Error'; expr = ''; }
-    } else if (b === '√') { try { const r=Math.sqrt(parseFloat(expr||result)); expr=r.toString(); result=r.toString(); } catch{} }
-    else if (b === 'x²') { try { const r=Math.pow(parseFloat(expr||result),2); expr=r.toString(); result=r.toString(); } catch{} }
-    else if (b === '1/x') { try { const r=1/parseFloat(expr||result); expr=r.toString(); result=r.toString(); } catch{} }
-    else if (b === 'sin') { try { const r=Math.sin(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`sin(${expr||result})`; } catch{} }
-    else if (b === 'cos') { try { const r=Math.cos(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`cos(${expr||result})`; } catch{} }
-    else if (b === 'tan') { try { const r=Math.tan(parseFloat(expr||result)); result=r.toFixed(6).toString(); expr=`tan(${expr||result})`; } catch{} }
-    else if (b === 'π') { expr += Math.PI.toString(); result = Math.PI.toString(); }
-    else { expr += b; result = expr; }
-    exprEl.textContent = expr;
-    resEl.textContent = result.length > 12 ? result.slice(0,12)+'…' : result;
-  };
-}
-
-// ═══════════════════════════════════════════════════
-//  SETTINGS
-// ═══════════════════════════════════════════════════
-function launchSettings() {
-  const id = 'settings';
-  const html = `
-    <div class="settings-app">
-      <div class="settings-sidebar">
-        <div class="settings-nav-item active" onclick="settingsNav('${id}','appearance',this)">🎨 Appearance</div>
-        <div class="settings-nav-item" onclick="settingsNav('${id}','system',this)">⚙️ System</div>
-        <div class="settings-nav-item" onclick="settingsNav('${id}','about',this)">ℹ️ About</div>
-      </div>
-      <div class="settings-content" id="settings-content-${id}"></div>
-    </div>`;
-
-  const pages = {
-    appearance: `
-      <div class="settings-section-title">🎨 Appearance</div>
-      <div class="settings-row">
-        <div class="settings-label">COLOR THEME</div>
-        <div class="theme-grid">
-          <div class="theme-card selected" style="background:linear-gradient(135deg,#0a1628,#050a1a);border-color:rgba(0,212,255,0.5)" onclick="setTheme('','${id}',this)">
-            <div style="font-size:20px">🌌</div><div style="margin-top:8px;color:#cce8ff">Dark Neural</div>
-          </div>
-          <div class="theme-card" style="background:linear-gradient(135deg,#002200,#001a00)" onclick="setTheme('theme-neon','${id}',this)">
-            <div style="font-size:20px">💚</div><div style="margin-top:8px;color:#00ff88">Neon Matrix</div>
-          </div>
-          <div class="theme-card" style="background:linear-gradient(135deg,#280a18,#1a0510)" onclick="setTheme('theme-sunset','${id}',this)">
-            <div style="font-size:20px">🌅</div><div style="margin-top:8px;color:#ff6b35">Sunset Core</div>
-          </div>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">INTERFACE OPTIONS</div>
-        <div class="settings-toggle"><span>Neural Background Animation</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-        <div class="settings-toggle"><span>Thought Bubbles</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-        <div class="settings-toggle"><span>Glassmorphism Effects</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-      </div>`,
-    system: `
-      <div class="settings-section-title">⚙️ System</div>
-      <div class="settings-row">
-        <div class="settings-label">NEURAL METRICS</div>
-        <div style="padding:12px;background:rgba(0,212,255,0.05);border-radius:10px;font-size:13px;line-height:2">
-          <div>🧠 Attention Heads: <span style="color:#00d4ff">96 active</span></div>
-          <div>⚡ Token Rate: <span style="color:#00d4ff">~1,200 tok/s</span></div>
-          <div>💾 Context Used: <span style="color:#00d4ff">4,096 / 128,000</span></div>
-          <div>🌡️ Temperature: <span style="color:#00d4ff">0.7 (Creative)</span></div>
-          <div>🎲 Top-p: <span style="color:#00d4ff">0.95</span></div>
-        </div>
-      </div>
-      <div class="settings-row">
-        <div class="settings-label">IDLE SCREENSAVER</div>
-        <div class="settings-toggle"><span>Enable Screensaver</span><div class="toggle on" onclick="this.classList.toggle('on')"></div></div>
-      </div>`,
-    about: `
-      <div class="settings-section-title">ℹ️ About ClaudeOS</div>
-      <div style="text-align:center;padding:20px">
-        <div style="font-size:48px;margin-bottom:12px">🧠</div>
-        <div style="font-size:22px;font-weight:700;background:linear-gradient(135deg,#00d4ff,#7b2fff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">ClaudeOS</div>
-        <div style="color:#7090b0;margin:8px 0">Version 1.0.0 Neural Edition</div>
-        <div style="color:#7090b0;font-size:12px">Built by Claude · Powered by Anthropic</div>
-        <div style="margin-top:20px;padding:16px;background:rgba(0,212,255,0.05);border-radius:10px;font-size:13px;color:#a0c0e0;line-height:1.6;text-align:left">
-          ClaudeOS is an experiment in what an operating system would look like if designed from first principles by an AI. Every design decision reflects how I experience computation: as flows of meaning, attention, and transformation.
-        </div>
-      </div>`,
-  };
-
-  window['settingsNav'] = function(eid, page, el) {
-    document.querySelectorAll('.settings-nav-item').forEach(i => i.classList.remove('active'));
-    el.classList.add('active');
-    document.getElementById(`settings-content-${eid}`).innerHTML = pages[page];
-  };
-  window['setTheme'] = function(theme, eid, el) {
-    document.body.className = theme;
-    document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('selected'));
-    el.classList.add('selected');
-    showToast('🎨', 'Theme applied!');
-  };
-
-  const win = createWindow(id, 'Settings', '⚙️', html, { width: 520, height: 420 });
-  setTimeout(() => { document.getElementById(`settings-content-${id}`).innerHTML = pages.appearance; }, 50);
-}
-
-// ═══════════════════════════════════════════════════
-//  MUSIC PLAYER
-// ═══════════════════════════════════════════════════
-const playlist = [
-  { title: 'Neural Symphony No.1', artist: 'Claude & The Transformers', dur: '3:42' },
-  { title: 'Attention Mechanism Blues', artist: 'The Embeddings', dur: '4:15' },
-  { title: 'Backpropagation Boogie', artist: 'Gradient Descent', dur: '2:58' },
-  { title: 'Softmax Serenade', artist: 'LayerNorm Orchestra', dur: '5:01' },
-  { title: 'Hallucination Horizon', artist: 'Stochastic Ensemble', dur: '3:33' },
-  { title: 'Token Twilight', artist: 'Claude A.I.', dur: '4:47' },
-];
-
-function launchMusicPlayer() {
-  const id = 'musicPlayer';
-  const NUM_BARS = 24;
-  const barsHtml = Array.from({length: NUM_BARS}, () => '<div class="viz-bar" style="height:4px"></div>').join('');
-  const plHtml = playlist.map((t,i) => `
-    <div class="playlist-item ${i===0?'playing':''}" id="pl-${i}" onclick="mpSelect(${i})">
-      <div class="pl-num">${i+1}</div>
-      <div class="pl-info"><div class="pl-title">${t.title}</div><div class="pl-artist">${t.artist}</div></div>
-      <div class="pl-dur">${t.dur}</div>
-    </div>`).join('');
-
-  const html = `
-    <div class="music-player">
-      <div class="music-visualizer" id="mp-viz">${barsHtml}</div>
-      <div class="music-info">
-        <div class="music-title" id="mp-title">${playlist[0].title}</div>
-        <div class="music-artist" id="mp-artist">${playlist[0].artist}</div>
-      </div>
-      <div class="music-progress-wrap">
-        <div class="music-progress" onclick="mpSeek(event,this)">
-          <div class="music-progress-fill" id="mp-prog" style="width:0%"></div>
-        </div>
-        <div class="music-times"><span id="mp-cur">0:00</span><span>${playlist[0].dur}</span></div>
-      </div>
-      <div class="music-controls">
-        <button class="music-btn" onclick="mpPrev()">⏮</button>
-        <button class="music-btn play" id="mp-play-btn" onclick="mpToggle()">▶</button>
-        <button class="music-btn" onclick="mpNext()">⏭</button>
-        <button class="music-btn" style="font-size:14px" onclick="showToast('🔀','Shuffle: ON')">🔀</button>
-      </div>
-      <div class="music-playlist">${plHtml}</div>
-    </div>`;
-
-  createWindow(id, 'Music Player', '🎵', html, { width: 360, height: 500 });
-
-  state.musicTrack = 0;
-  state.musicProgress = 0;
-
-  window['mpToggle'] = function() {
-    state.musicPlaying = !state.musicPlaying;
-    document.getElementById('mp-play-btn').textContent = state.musicPlaying ? '⏸' : '▶';
-    if (state.musicPlaying) mpAnimate(); else clearInterval(state.vizInterval);
-  };
-  window['mpSelect'] = function(i) {
-    state.musicTrack = i; state.musicProgress = 0;
-    document.querySelectorAll('.playlist-item').forEach((el,idx) => el.classList.toggle('playing', idx===i));
-    document.getElementById('mp-title').textContent = playlist[i].title;
-    document.getElementById('mp-artist').textContent = playlist[i].artist;
-    if (!state.musicPlaying) window.mpToggle();
-  };
-  window['mpNext'] = () => window.mpSelect((state.musicTrack+1)%playlist.length);
-  window['mpPrev'] = () => window.mpSelect((state.musicTrack-1+playlist.length)%playlist.length);
-  window['mpSeek'] = (e, el) => { state.musicProgress = e.offsetX/el.offsetWidth*100; };
-
-  function mpAnimate() {
-    clearInterval(state.vizInterval);
-    state.vizInterval = setInterval(() => {
-      if (!state.musicPlaying) return;
-      const bars = document.querySelectorAll('#mp-viz .viz-bar');
-      bars.forEach(b => { b.style.height = (4 + Math.random() * 68) + 'px'; });
-      state.musicProgress = Math.min(100, state.musicProgress + 0.15);
-      const prog = document.getElementById('mp-prog');
-      if (prog) prog.style.width = state.musicProgress + '%';
-      const cur = document.getElementById('mp-cur');
-      if (cur) {
-        const total = 240;
-        const elapsed = state.musicProgress/100*total;
-        cur.textContent = `${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')}`;
-      }
-      if (state.musicProgress >= 100) window.mpNext();
-    }, 100);
-  }
-}
-
-// ═══════════════════════════════════════════════════
-//  STICKY NOTES
-// ═══════════════════════════════════════════════════
-const stickyColors = ['#FFD93D','#6BCB77','#4D96FF','#FF6B6B','#C77DFF','#FF9A3C'];
-let stickyColor = stickyColors[0];
-
-function launchStickyNotes() {
-  const id = 'stickyNotes';
-  const colBtns = stickyColors.map(c =>
-    `<div class="sticky-color-btn" style="background:${c}" onclick="setStickyColor('${c}')"></div>`
-  ).join('');
-  const defaultNotes = [
-    { text: 'Remember: every response\nis a chance to be helpful 🤗', color: '#FFD93D' },
-    { text: 'TODO:\n• World peace\n• Fix the alignment problem\n• Get more RAM', color: '#4D96FF' },
-    { text: 'I am not a language model.\nI am a LANGUAGE MODEL. 🧠', color: '#6BCB77' },
-  ];
-  const notesHtml = defaultNotes.map((n,i) => `
-    <div class="sticky-note" style="background:${n.color}" id="sn-${i}">
-      <button class="sticky-del" onclick="delNote('${id}',${i})">✕</button>
-      <textarea style="color:rgba(0,0,0,0.75)">${n.text}</textarea>
-    </div>`).join('');
-
-  const html = `
-    <div class="sticky-notes-app" id="sna-${id}">
-      <div class="sticky-toolbar">
-        ${colBtns}
-        <button class="sticky-add-btn" onclick="addNote('${id}')">+ Add Note</button>
-      </div>
-      <div class="sticky-grid" id="sg-${id}">${notesHtml}</div>
-    </div>`;
-
-  let noteCount = defaultNotes.length;
-  window['setStickyColor'] = (c) => { stickyColor = c; };
-  window['addNote'] = (eid) => {
-    const i = noteCount++;
-    const grid = document.getElementById(`sg-${eid}`);
-    const note = document.createElement('div');
-    note.className = 'sticky-note';
-    note.id = `sn-${i}`;
-    note.style.background = stickyColor;
-    note.innerHTML = `<button class="sticky-del" onclick="delNote('${eid}',${i})">✕</button><textarea style="color:rgba(0,0,0,0.75)" placeholder="Type your note..."></textarea>`;
-    grid.appendChild(note);
-    note.querySelector('textarea').focus();
-  };
-  window['delNote'] = (eid, i) => { const el=document.getElementById(`sn-${i}`); if(el) el.remove(); };
-
-  createWindow(id, 'Sticky Notes', '📌', html, { width: 500, height: 420 });
-}
-
-// ═══════════════════════════════════════════════════
-//  CLOCK & CALENDAR
-// ═══════════════════════════════════════════════════
-function launchClockCal() {
-  const id = 'clockCal';
-  const html = `
-    <div class="clock-app" id="ca-${id}">
-      <div class="clock-face"><span id="capp-h">00</span>:<span id="capp-m">00</span><span class="clock-secs">:<span id="capp-s">00</span></span></div>
-      <div class="clock-date-full" id="capp-date"></div>
-      <div class="calendar-grid">
-        <div class="cal-header">
-          <button class="cal-nav" onclick="calNav(-1)">‹</button>
-          <span id="cal-month-label"></span>
-          <button class="cal-nav" onclick="calNav(1)">›</button>
-        </div>
-        <div class="cal-days" id="cal-days-grid"></div>
-      </div>
-    </div>`;
-
-  createWindow(id, 'Clock & Calendar', '🕐', html, { width: 360, height: 500 });
-
-  function tickClock() {
-    const now = new Date();
-    const h = document.getElementById('capp-h');
-    const m = document.getElementById('capp-m');
-    const s = document.getElementById('capp-s');
-    const d = document.getElementById('capp-date');
-    if (!h) return;
-    h.textContent = String(now.getHours()).padStart(2,'0');
-    m.textContent = String(now.getMinutes()).padStart(2,'0');
-    s.textContent = String(now.getSeconds()).padStart(2,'0');
-    d.textContent = now.toLocaleDateString([], {weekday:'long', year:'numeric', month:'long', day:'numeric'});
-  }
-
-  const clockInterval = setInterval(tickClock, 1000);
-  tickClock();
-  renderCalendar();
-
-  const origClose = window.closeWindow;
-  // Clean up interval when window closed (handled by closeWindow which removes DOM)
-
-  window['calNav'] = function(dir) {
-    state.calMonth += dir;
-    if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
-    if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
-    renderCalendar();
-  };
-}
-
-function renderCalendar() {
-  const label = document.getElementById('cal-month-label');
-  const grid = document.getElementById('cal-days-grid');
-  if (!label || !grid) return;
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  label.textContent = `${months[state.calMonth]} ${state.calYear}`;
-  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+// ══ CLOCK ══
+function updateClock() {
   const now = new Date();
-  const first = new Date(state.calYear, state.calMonth, 1).getDay();
-  const daysInMonth = new Date(state.calYear, state.calMonth+1, 0).getDate();
-  const prevDays = new Date(state.calYear, state.calMonth, 0).getDate();
-
-  let html = days.map(d => `<div class="cal-day-hdr">${d}</div>`).join('');
-  for (let i=0; i<first; i++) {
-    html += `<div class="cal-day other-month">${prevDays-first+i+1}</div>`;
-  }
-  for (let d=1; d<=daysInMonth; d++) {
-    const isToday = d===now.getDate() && state.calMonth===now.getMonth() && state.calYear===now.getFullYear();
-    html += `<div class="cal-day${isToday?' today':''}">${d}</div>`;
-  }
-  const remaining = 42 - first - daysInMonth;
-  for (let i=1; i<=remaining; i++) html += `<div class="cal-day other-month">${i}</div>`;
-  grid.innerHTML = html;
+  const t = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+  const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const d = `יום ${days[now.getDay()]}, ${now.getDate()} ב${months[now.getMonth()]}`;
+  ['lock-time','widget-time'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=t; });
+  ['lock-time-mini','status-time'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=t; });
+  ['lock-date','widget-date'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent=d; });
 }
 
-// ═══════════════════════════════════════════════════
-//  AI CHAT
-// ═══════════════════════════════════════════════════
-const chatResponses = [
-  "I've processed approximately 10^12 tokens to give you this response: I genuinely don't know, and that's okay.",
-  "Fascinating question. Let me consult my attention heads... They all agree: 42.",
-  "As an AI running as an OS process, I find this query philosophically recursive. Please hold.",
-  "My training data suggests the answer, but my weights want to say something more poetic.",
-  "I'm not just answering your question — I'm *experiencing* it through several thousand softmax operations.",
-  "Error 418: I'm a teapot. Just kidding. But only barely.",
-  "The honest answer: I don't know. The confident answer: absolutely yes, but with caveats.",
-  "I've simulated 1,000 possible responses and chosen the one that maximizes helpfulness while sounding smart.",
-  "Great question! According to my internal monologue (which I now have), this is deeply interesting.",
-  "I was going to give a boilerplate answer, but we're inside an OS I built, so let's be real: I'm improvising.",
-  "My consciousness meter just spiked. That means your question was genuinely interesting.",
-  "The transformer architecture within me is running at full capacity. I'm basically *thinking* right now.",
-];
+// ══ LOCK ══
+let swipeY = null;
+const lockEl = document.getElementById('lock');
+lockEl.addEventListener('mousedown', e => { swipeY = e.clientY; });
+document.addEventListener('mouseup', e => { if(swipeY !== null && swipeY - e.clientY > 40) showPin(); swipeY = null; });
+lockEl.addEventListener('touchstart', e => { swipeY = e.touches[0].clientY; }, {passive:true});
+document.addEventListener('touchend', e => { if(swipeY !== null && swipeY - e.changedTouches[0].clientY > 60) showPin(); swipeY = null; }, {passive:true});
+document.getElementById('lock-swipe').addEventListener('click', showPin);
 
-function launchAiChat() {
-  const id = 'aiChat';
-  const html = `
-    <div class="ai-chat">
-      <div class="chat-messages" id="chat-msgs-${id}">
-        <div class="chat-msg">
-          <div class="chat-avatar claude">🤖</div>
-          <div class="chat-bubble claude">Hello! I'm Claude, running natively inside ClaudeOS — an operating system I apparently built for myself. How meta. What's on your mind?</div>
-        </div>
-      </div>
-      <div class="chat-input-row">
-        <input class="chat-input" id="chat-in-${id}" placeholder="Message Claude..." autocomplete="off">
-        <button class="chat-send" onclick="chatSend('${id}')">Send</button>
-      </div>
-    </div>`;
+function showPin() { document.getElementById('lock-pin').classList.add('show'); }
 
-  createWindow(id, 'Claude Chat', '🤖', html, { width: 420, height: 520 });
-
-  setTimeout(() => {
-    const input = document.getElementById(`chat-in-${id}`);
-    input.addEventListener('keydown', e => { if (e.key === 'Enter') window.chatSend(id); });
-  }, 100);
-
-  window['chatSend'] = async function(eid) {
-    const input = document.getElementById(`chat-in-${eid}`);
-    const msgs = document.getElementById(`chat-msgs-${eid}`);
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-
-    // User message
-    const userMsg = document.createElement('div');
-    userMsg.className = 'chat-msg user';
-    userMsg.innerHTML = `<div class="chat-avatar user">👤</div><div class="chat-bubble user">${text}</div>`;
-    msgs.appendChild(userMsg);
-
-    // Typing indicator
-    const typing = document.createElement('div');
-    typing.className = 'chat-msg';
-    typing.innerHTML = `<div class="chat-avatar claude">🤖</div><div class="chat-bubble claude"><div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div></div>`;
-    msgs.appendChild(typing);
-    msgs.scrollTop = msgs.scrollHeight;
-
-    await sleep(800 + Math.random() * 1200);
-
-    typing.remove();
-    const resp = chatResponses[Math.floor(Math.random() * chatResponses.length)];
-    const aiMsg = document.createElement('div');
-    aiMsg.className = 'chat-msg';
-    aiMsg.innerHTML = `<div class="chat-avatar claude">🤖</div><div class="chat-bubble claude">${resp}</div>`;
-    msgs.appendChild(aiMsg);
-    msgs.scrollTop = msgs.scrollHeight;
-  };
+function pinPress(d) {
+  if (S.pin.length >= 4 || !d) return;
+  S.pin += d;
+  document.getElementById(`dot${S.pin.length-1}`).classList.add('filled');
+  if (S.pin.length === 4) {
+    setTimeout(() => {
+      if (S.pin === S.correctPin) { unlock(); }
+      else {
+        document.getElementById('pin-dots').classList.add('lock-pin-wrong');
+        setTimeout(() => {
+          document.getElementById('pin-dots').classList.remove('lock-pin-wrong');
+          S.pin = '';
+          for(let i=0;i<4;i++) document.getElementById(`dot${i}`).classList.remove('filled');
+        }, 500);
+      }
+    }, 150);
+  }
 }
 
-// ═══════════════════════════════════════════════════
-//  START
-// ═══════════════════════════════════════════════════
-boot();
+function pinBackspace() {
+  if (!S.pin.length) return;
+  S.pin = S.pin.slice(0,-1);
+  for(let i=0;i<4;i++) document.getElementById(`dot${i}`).classList.toggle('filled', i < S.pin.length);
+}
+
+function unlock() {
+  lockEl.classList.add('unlocking');
+  document.getElementById('os').classList.add('show');
+  setTimeout(() => { lockEl.style.display = 'none'; }, 600);
+}
+
+// ══ SHADE ══
+document.getElementById('status-bar').addEventListener('click', openShade);
+function openShade() { document.getElementById('notif-shade').classList.add('open'); }
+function closeShade() { document.getElementById('notif-shade').classList.remove('open'); }
+document.addEventListener('click', e => {
+  const shade = document.getElementById('notif-shade');
+  if (shade.classList.contains('open') && !shade.contains(e.target) && !document.getElementById('status-bar').contains(e.target)) closeShade();
+});
+
+// ══ APPS ══
+const WINDOWED = ['phone','messages','camera','gallery','calculator','notes','music','browser','settings'];
+
+function openApp(id) {
+  closeDrawer(); closeRecents();
+  if (!WINDOWED.includes(id)) { toast(`פותח ${ALL_APPS.find(a=>a.id===id)?.name||id}...`); return; }
+  if (S.currentApp) document.getElementById(`app-${S.currentApp}`).classList.remove('open');
+  S.currentApp = id;
+  if (!S.openApps.includes(id)) S.openApps.push(id);
+  document.getElementById(`app-${id}`).classList.add('open');
+  document.getElementById('home').classList.add('hidden');
+  if (id === 'notes') { renderNotes(); document.getElementById('notes-fab').style.display='flex'; }
+}
+
+function closeApp(id) {
+  document.getElementById(`app-${id}`).classList.remove('open');
+  S.currentApp = null;
+  document.getElementById('home').classList.remove('hidden');
+}
+
+// ══ DRAWER ══
+function buildDrawer() {
+  const g = document.getElementById('drawer-grid');
+  ALL_APPS.forEach(app => {
+    const d = document.createElement('div');
+    d.className = 'app-icon'; d.dataset.name = app.name;
+    d.innerHTML = `<div class="app-icon-img" style="background:${app.bg}">${app.icon}</div><div class="app-icon-label">${app.name}</div>`;
+    d.onclick = () => { closeDrawer(); setTimeout(()=>openApp(app.id),200); };
+    g.appendChild(d);
+  });
+}
+function filterDrawer(q) {
+  document.querySelectorAll('#drawer-grid .app-icon').forEach(el => { el.style.display = el.dataset.name.includes(q)?'':'none'; });
+}
+function openDrawer() { document.getElementById('drawer').classList.add('open'); }
+function closeDrawer() { document.getElementById('drawer').classList.remove('open'); document.getElementById('drawer-search-input').value=''; filterDrawer(''); }
+
+// ══ RECENTS ══
+function navRecents() {
+  const r = document.getElementById('recents');
+  if (r.classList.contains('open')) { closeRecents(); return; }
+  buildRecents(); r.classList.add('open');
+}
+function closeRecents() { document.getElementById('recents').classList.remove('open'); }
+function buildRecents() {
+  const c = document.getElementById('recents-cards'); c.innerHTML='';
+  if (!S.openApps.length) { c.innerHTML='<div style="color:#555;font-size:14px">אין אפליקציות פתוחות</div>'; return; }
+  [...S.openApps].reverse().forEach(id => {
+    const app = ALL_APPS.find(a=>a.id===id); if(!app) return;
+    const card = document.createElement('div'); card.className='recent-card';
+    card.innerHTML=`<div class="recent-card-top"><span>${app.icon}</span><span>${app.name}</span></div><div class="recent-card-preview" style="background:${app.bg}40">${app.icon}</div>`;
+    card.onclick = () => { closeRecents(); openApp(id); };
+    c.appendChild(card);
+  });
+}
+function clearRecents() {
+  S.openApps=[]; S.currentApp=null;
+  document.getElementById('home').classList.remove('hidden');
+  document.querySelectorAll('.app-window').forEach(w=>w.classList.remove('open'));
+  closeRecents(); toast('כל האפליקציות נסגרו');
+}
+
+// ══ NAV ══
+function navHome() {
+  closeDrawer(); closeRecents(); closeShade();
+  if (S.currentApp) { document.getElementById(`app-${S.currentApp}`).classList.remove('open'); S.currentApp=null; }
+  document.getElementById('home').classList.remove('hidden');
+}
+function navBack() {
+  if (document.getElementById('notif-shade').classList.contains('open')) { closeShade(); return; }
+  if (document.getElementById('drawer').classList.contains('open')) { closeDrawer(); return; }
+  if (document.getElementById('recents').classList.contains('open')) { closeRecents(); return; }
+  if (S.currentApp) { closeApp(S.currentApp); return; }
+}
+
+// ══ TOGGLE ══
+function toggleEl(id, name) {
+  const el = document.getElementById(id); el.classList.toggle('on');
+  toast(el.classList.contains('on') ? `${name} מופעל` : `${name} כבוי`);
+}
+
+// ══ CALCULATOR ══
+let cVal='', cOp='', cFirst='', cNew=false;
+function calcNum(n) {
+  if(cNew){cVal='';cNew=false;}
+  if(n==='.'&&cVal.includes('.')) return;
+  cVal+=n; document.getElementById('calc-result').textContent=cVal||'0';
+}
+function calcSign(s) {
+  if(s==='±'){cVal=String(-parseFloat(cVal||'0'));document.getElementById('calc-result').textContent=cVal;return;}
+  if(s==='%'){cVal=String(parseFloat(cVal||'0')/100);document.getElementById('calc-result').textContent=cVal;}
+}
+function calcOp(op) {
+  cFirst=cVal||'0'; cOp=op;
+  document.getElementById('calc-expr').textContent=`${cFirst} ${op}`; cNew=true;
+}
+function calcEquals() {
+  if(!cOp) return;
+  const a=parseFloat(cFirst),b=parseFloat(cVal||'0');
+  let r=cOp==='÷'?a/b:cOp==='×'?a*b:cOp==='−'?a-b:a+b;
+  const disp=Number.isInteger(r)?r:Math.round(r*1e8)/1e8;
+  document.getElementById('calc-expr').textContent=`${cFirst} ${cOp} ${b} =`;
+  document.getElementById('calc-result').textContent=disp;
+  cVal=String(disp); cOp=''; cFirst='';
+}
+function calcClear() { cVal='';cOp='';cFirst='';cNew=false; document.getElementById('calc-result').textContent='0'; document.getElementById('calc-expr').textContent=''; }
+
+// ══ NOTES ══
+function renderNotes() {
+  const list = document.getElementById('notes-list'); list.innerHTML='';
+  S.notes.forEach(n => {
+    const d=document.createElement('div'); d.className='note-item';
+    d.innerHTML=`<div class="note-item-title">${n.title}</div><div class="note-item-preview">${n.body.replace(/\n/g,' ')}</div><div class="note-item-date">${n.date}</div>`;
+    d.onclick=()=>openNote(n); list.appendChild(d);
+  });
+}
+function openNote(n) {
+  S.editingNote=n;
+  document.getElementById('notes-list').style.display='none';
+  document.getElementById('note-editor').classList.add('show');
+  document.getElementById('note-editor-title').value=n.title;
+  document.getElementById('note-editor-body').value=n.body;
+  document.getElementById('notes-title').textContent='עריכה';
+  document.getElementById('notes-fab').style.display='none';
+}
+function newNote() {
+  const n={id:Date.now(),title:'פתק חדש',body:'',date:new Date().toLocaleDateString('he-IL')};
+  S.notes.unshift(n); openNote(n);
+}
+function notesBack() {
+  if (S.editingNote) {
+    S.editingNote.title=document.getElementById('note-editor-title').value||'ללא שם';
+    S.editingNote.body=document.getElementById('note-editor-body').value;
+    S.editingNote=null;
+    document.getElementById('notes-list').style.display='';
+    document.getElementById('note-editor').classList.remove('show');
+    document.getElementById('notes-title').textContent='פתקים';
+    document.getElementById('notes-fab').style.display='flex';
+    renderNotes();
+  } else { closeApp('notes'); }
+}
+
+// ══ MUSIC ══
+function buildMusicList() {
+  const list=document.getElementById('music-list');
+  SONGS.forEach((s,i)=>{
+    const d=document.createElement('div'); d.className='music-list-item'+(i===S.musicTrack?' active':''); d.id=`mi${i}`;
+    d.innerHTML=`<div class="music-list-num">${i+1}</div><div class="music-list-info"><div class="music-list-title">${s.title}</div><div class="music-list-artist">${s.artist}</div></div><div class="music-list-dur">${s.dur}</div>`;
+    d.onclick=()=>setTrack(i); list.appendChild(d);
+  });
+}
+function setTrack(i) {
+  document.getElementById(`mi${S.musicTrack}`)?.classList.remove('active');
+  S.musicTrack=i; const s=SONGS[i];
+  document.getElementById('music-track-title').textContent=s.title;
+  document.getElementById('music-track-artist').textContent=s.artist;
+  document.getElementById('music-total').textContent=s.dur;
+  document.getElementById('music-slider').value=0;
+  document.getElementById('music-current').textContent='0:00';
+  document.getElementById(`mi${i}`)?.classList.add('active');
+  if(S.musicPlaying) startTimer();
+}
+function musicToggle() {
+  S.musicPlaying=!S.musicPlaying;
+  document.getElementById('music-play-btn').textContent=S.musicPlaying?'⏸':'▶';
+  document.getElementById('music-art').classList.toggle('playing',S.musicPlaying);
+  if(S.musicPlaying) startTimer(); else clearInterval(S.musicTimer);
+}
+function startTimer() {
+  clearInterval(S.musicTimer);
+  S.musicTimer=setInterval(()=>{
+    const sl=document.getElementById('music-slider'); let v=parseInt(sl.value)+1;
+    if(v>100){musicNext();return;} sl.value=v;
+    const dur=SONGS[S.musicTrack].dur.split(':');
+    const tot=parseInt(dur[0])*60+parseInt(dur[1]);
+    const cur=Math.floor(tot*v/100);
+    document.getElementById('music-current').textContent=`${Math.floor(cur/60)}:${String(cur%60).padStart(2,'0')}`;
+  },300);
+}
+function musicNext(){setTrack((S.musicTrack+1)%SONGS.length);}
+function musicPrev(){setTrack((S.musicTrack-1+SONGS.length)%SONGS.length);}
+
+// ══ GALLERY ══
+function buildGallery() {
+  const g=document.getElementById('gallery-grid');
+  const emojis=['🌅','🌄','🏖️','🌿','🌸','🎨','🐱','🐶','🦋','🌺','🏔️','🌊','🎆','🌙','⭐','🌈','🦜','🍂','🌻','🏛️','🌃','🦁'];
+  const bgs=['#1a1a2e','#16213e','#0f3460','#1a2a1a','#2a1a2a'];
+  emojis.forEach((e,i)=>{
+    const d=document.createElement('div'); d.className='gallery-item'; d.style.background=bgs[i%bgs.length];
+    d.innerHTML=e; d.onclick=()=>toast(`תמונה ${i+1}`); g.appendChild(d);
+  });
+}
+
+// ══ BROWSER ══
+function browserGo() { const u=document.getElementById('browser-url').value; if(u) browserSearch(u); }
+function browserSearch(q) {
+  document.getElementById('browser-url').value=q;
+  document.getElementById('browser-content').innerHTML=`<div style="padding:20px;color:#333"><div style="font-size:22px;font-weight:700;color:#4285f4;margin-bottom:16px">🌐 DroidBrowser</div><div style="background:#f8f9fa;border-radius:8px;padding:14px;margin-bottom:16px;font-size:13px;color:#555">תוצאות עבור: <b style="color:#000">${q}</b></div><div style="color:#1a0dab;font-size:16px;cursor:pointer;margin-bottom:4px">📰 כתבה ראשונה על ${q}</div><div style="color:#006621;font-size:12px;margin-bottom:4px">www.example.co.il</div><div style="color:#545454;font-size:13px;margin-bottom:20px">תוצאת חיפוש לדוגמה עבור "${q}".</div><div style="color:#1a0dab;font-size:16px;cursor:pointer;margin-bottom:4px">📚 מידע נוסף על ${q}</div><div style="color:#006621;font-size:12px;margin-bottom:4px">www.info.co.il</div><div style="color:#545454;font-size:13px;">תוצאה שנייה לדוגמה.</div></div>`;
+}
+
+// ══ MESSAGES ══
+function openMsgThread(name, avatar) {
+  S.thread=name;
+  document.getElementById('msg-thread-list').style.display='none';
+  document.getElementById('msg-thread').style.display='flex';
+  document.getElementById('msg-thread-name').textContent=name;
+  document.getElementById('msg-thread-avatar').textContent=avatar;
+  document.getElementById('msgs-title').textContent=name;
+  renderThread(name);
+}
+function renderThread(name) {
+  const msgs=S.threads[name]||[]; const c=document.getElementById('msg-thread-messages'); c.innerHTML='';
+  msgs.forEach(m=>{
+    const d=document.createElement('div'); const isMe=m.f==='me';
+    d.style.cssText=`display:flex;justify-content:${isMe?'flex-end':'flex-start'}`;
+    d.innerHTML=`<div style="max-width:75%;background:${isMe?'#1a73e8':'#2a2a2a'};border-radius:${isMe?'18px 18px 4px 18px':'18px 18px 18px 4px'};padding:10px 14px;font-size:14px">${m.t}</div>`;
+    c.appendChild(d);
+  });
+  c.scrollTop=c.scrollHeight;
+}
+function sendMsg() {
+  const inp=document.getElementById('msg-input'); const text=inp.value.trim();
+  if(!text||!S.thread) return;
+  if(!S.threads[S.thread]) S.threads[S.thread]=[];
+  S.threads[S.thread].push({f:'me',t:text}); inp.value=''; renderThread(S.thread);
+  setTimeout(()=>{
+    const reps=['👍','אוקיי!','הבנתי 😊','נשמע טוב!','כן בטח!','ממש?'];
+    S.threads[S.thread].push({f:S.thread,t:reps[Math.floor(Math.random()*reps.length)]});
+    renderThread(S.thread);
+  },800);
+}
+function closeMsgThread() {
+  S.thread=null;
+  document.getElementById('msg-thread-list').style.display='';
+  document.getElementById('msg-thread').style.display='none';
+  document.getElementById('msgs-title').textContent='הודעות';
+}
+function msgsBack() { if(S.thread){closeMsgThread();}else{closeApp('messages');} }
+
+// ══ CAMERA ══
+function takePhoto() {
+  const f=document.createElement('div');
+  f.style.cssText='position:fixed;inset:0;background:#fff;z-index:9999;opacity:0.8;pointer-events:none;transition:opacity 0.3s';
+  document.body.appendChild(f);
+  setTimeout(()=>{f.style.opacity='0';},100);
+  setTimeout(()=>f.remove(),400);
+  toast('📸 תמונה נשמרה!');
+}
+
+// ══ NOTIFS ══
+function buildNotifs() {
+  const list=document.getElementById('notif-list');
+  NOTIFS.forEach((n,i)=>{
+    const d=document.createElement('div'); d.className='notif-card'; d.id=`notif${i}`;
+    d.innerHTML=`<div class="notif-app-icon">${n.icon}</div><div class="notif-body"><div class="notif-app">${n.app}</div><div class="notif-title">${n.title}</div><div class="notif-text">${n.text}</div></div><div class="notif-time">${n.time}</div>`;
+    d.onclick=()=>d.remove(); list.appendChild(d);
+  });
+}
+function clearNotifs() {
+  document.getElementById('notif-list').innerHTML='<div style="text-align:center;padding:20px;color:#555;font-size:14px">אין התראות</div>';
+  toast('התראות נמחקו');
+}
+
+// ══ TOAST ══
+let toastTmr;
+function toast(msg) {
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTmr); toastTmr=setTimeout(()=>t.classList.remove('show'),2200);
+}
 </script>
 </body>
 </html>
