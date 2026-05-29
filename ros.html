@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ROS — Android 16</title>
+<style>
+/* ═══════════════════════════════════════════════════════════
+   ROS  —  Robotic Operating System
+   A web-based Android 16 (Material 3 Expressive) experience.
+   Single-file, no dependencies. Runs in any modern browser.
+   ═══════════════════════════════════════════════════════════ */
+
+:root {
+  /* Material You dynamic palette (default: "Cosmic Teal") */
+  --primary: #6ad6c4;
+  --on-primary: #003730;
+  --primary-container: #00504540;
+  --secondary: #b1ccc5;
+  --surface: #0e1513;
+  --surface-1: #161e1c;
+  --surface-2: #1c2624;
+  --surface-3: #212d2b;
+  --surface-bright: #34403d;
+  --on-surface: #dde4e1;
+  --on-surface-variant: #bec9c5;
+  --outline: #889390;
+  --error: #ffb4ab;
+  --shade: rgba(0,0,0,0.55);
+  --sb-h: 32px;          /* status bar */
+  --nav-h: 26px;         /* gesture nav */
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: "Google Sans", "Roboto", "Segoe UI", system-ui, sans-serif;
+  background: #000; color: var(--on-surface); user-select: none;
+}
+
+/* ───────────── PHONE FRAME ───────────── */
+#stage {
+  width: 100vw; height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 20%, #18302c 0%, #060a09 60%, #000 100%);
+}
+#phone {
+  position: relative;
+  width: min(412px, 100vw);
+  height: min(916px, 100vh);
+  max-height: 100vh;
+  background: var(--surface);
+  border-radius: 44px;
+  overflow: hidden;
+  box-shadow: 0 0 0 11px #0b0f0e, 0 0 0 13px #2a3331, 0 40px 90px rgba(0,0,0,0.7);
+  transition: background .5s ease;
+}
+@media (max-width: 420px), (max-height: 920px) {
+  #phone { border-radius: 0; box-shadow: none; width: 100vw; height: 100vh; }
+}
+
+/* dynamic wallpaper */
+#wallpaper {
+  position: absolute; inset: 0; z-index: 0;
+  background:
+    radial-gradient(circle at 78% 12%, rgba(106,214,196,.45), transparent 42%),
+    radial-gradient(circle at 12% 88%, rgba(123,90,255,.40), transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(255,140,200,.18), transparent 60%),
+    linear-gradient(160deg, #0a1614 0%, #0e1513 55%, #161022 100%);
+  transition: background .6s ease, filter .4s ease;
+}
+#phone.shade-open #wallpaper, #phone.recents-open #wallpaper { filter: brightness(.5) saturate(.8); }
+
+/* ───────────── STATUS BAR ───────────── */
+#statusbar {
+  position: absolute; top: 0; left: 0; right: 0; height: var(--sb-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 18px; font-size: 13px; font-weight: 600; z-index: 80;
+  color: #fff; pointer-events: none;
+}
+#statusbar .left { display: flex; gap: 6px; align-items: center; }
+#statusbar .right { display: flex; gap: 7px; align-items: center; }
+.notch {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  width: 12px; height: 12px; border-radius: 50%; background: #04100d;
+  box-shadow: inset 0 0 0 1.5px #1c2a27; z-index: 81;
+}
+.ic { display: inline-block; line-height: 1; }
+.batt { display: flex; align-items: center; gap: 3px; }
+.batt .pct { font-size: 12px; }
+
+/* ───────────── SCREENS ───────────── */
+.screen { position: absolute; inset: 0; z-index: 10; }
+
+/* ===== LOCK SCREEN ===== */
+#lock {
+  z-index: 60; display: flex; flex-direction: column; align-items: center;
+  padding-top: 92px; transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s ease;
+}
+#lock.up { transform: translateY(-110%); opacity: 0; pointer-events: none; }
+.lock-clock { font-size: 78px; font-weight: 500; letter-spacing: -2px; line-height: 1; color: #fff; text-shadow: 0 2px 18px rgba(0,0,0,.4); }
+.lock-date { font-size: 16px; color: #fff; opacity: .9; margin-top: 6px; font-weight: 500; }
+.lock-weather { margin-top: 14px; font-size: 14px; color: #fff; opacity: .85; display: flex; gap: 6px; align-items: center; }
+.lock-notifs { width: 88%; margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+.lock-notif {
+  background: rgba(20,30,28,.66); backdrop-filter: blur(24px);
+  border-radius: 26px; padding: 13px 16px; display: flex; gap: 12px; align-items: center;
+  border: 1px solid rgba(255,255,255,.06);
+}
+.lock-notif .ni { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; flex: none; }
+.lock-notif .nb { flex: 1; min-width: 0; }
+.lock-notif .nt { font-size: 13px; font-weight: 600; color: #fff; }
+.lock-notif .nm { font-size: 12.5px; color: #cfd8d5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lock-bottom { position: absolute; bottom: 46px; left: 0; right: 0; display: flex; justify-content: space-between; padding: 0 40px; }
+.lock-fab { width: 52px; height: 52px; border-radius: 50%; background: rgba(30,42,40,.7); backdrop-filter: blur(20px); display: grid; place-items: center; font-size: 22px; border: 1px solid rgba(255,255,255,.08); cursor: pointer; transition: transform .15s, background .2s; }
+.lock-fab:active { transform: scale(.9); background: var(--primary); color: var(--on-primary); }
+.lock-hint { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; font-size: 12px; color: rgba(255,255,255,.7); }
+.lock-handle { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 120px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.5); }
+
+/* ===== HOME SCREEN ===== */
+#home { display: flex; flex-direction: column; padding-top: calc(var(--sb-h) + 6px); }
+.home-page { flex: 1; padding: 14px 18px 0; overflow: hidden; }
+
+/* At-a-glance widget */
+.glance { padding: 8px 6px 18px; }
+.glance .g-time { font-size: 34px; font-weight: 500; color: #fff; line-height: 1; }
+.glance .g-sub { font-size: 14px; color: #fff; opacity: .85; margin-top: 4px; display: flex; gap: 8px; align-items: center; }
+
+.app-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 6px; }
+.app {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer;
+  transition: transform .12s;
+}
+.app:active { transform: scale(.88); }
+.app .icon {
+  width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center;
+  font-size: 27px; color: #fff; position: relative;
+  box-shadow: 0 4px 14px rgba(0,0,0,.35);
+}
+.app .label { font-size: 12px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); max-width: 72px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.app .badge { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--error); color: #690005; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+
+/* search pill */
+.search-pill {
+  margin: 6px 4px 18px; height: 52px; border-radius: 26px;
+  background: rgba(24,34,32,.7); backdrop-filter: blur(20px);
+  display: flex; align-items: center; gap: 12px; padding: 0 18px;
+  border: 1px solid rgba(255,255,255,.06); cursor: pointer;
+}
+.search-pill .ph { color: var(--on-surface-variant); font-size: 15px; }
+.search-pill .gdot { width: 9px; height: 9px; border-radius: 50%; }
+
+/* dock */
+.dock {
+  margin: auto 14px 6px; padding: 12px 8px;
+  display: grid; grid-template-columns: repeat(5,1fr); gap: 6px;
+}
+.dock .app .label { display: none; }
+
+/* page dots + nav handle */
+.home-nav { height: var(--nav-h); display: grid; place-items: center; }
+.nav-handle { width: 130px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.45); cursor: pointer; }
+
+/* ===== APP DRAWER ===== */
+#drawer {
+  z-index: 55; background: rgba(14,21,19,.86); backdrop-filter: blur(36px);
+  transform: translateY(100%); transition: transform .4s cubic-bezier(.2,.85,.25,1);
+  display: flex; flex-direction: column; padding-top: calc(var(--sb-h) + 14px);
+}
+#drawer.open { transform: translateY(0); }
+.drawer-search {
+  margin: 4px 18px 16px; height: 50px; border-radius: 26px; background: var(--surface-2);
+  display: flex; align-items: center; gap: 12px; padding: 0 18px; color: var(--on-surface-variant);
+}
+.drawer-search input { flex: 1; background: none; border: none; outline: none; color: var(--on-surface); font-size: 15px; }
+.drawer-grid { flex: 1; overflow-y: auto; padding: 4px 18px 30px; display: grid; grid-template-columns: repeat(4,1fr); gap: 22px 6px; align-content: start; }
+.drawer-grid::-webkit-scrollbar { width: 0; }
+
+/* ───────────── NOTIFICATION SHADE / QUICK SETTINGS ───────────── */
+#shade {
+  position: absolute; left: 0; right: 0; top: 0; z-index: 70;
+  background: rgba(16,24,22,.96); backdrop-filter: blur(40px);
+  transform: translateY(-100%); transition: transform .42s cubic-bezier(.2,.85,.25,1);
+  display: flex; flex-direction: column; max-height: 100%;
+  border-radius: 0 0 36px 36px; padding: calc(var(--sb-h) + 10px) 16px 18px;
+  box-shadow: 0 24px 50px rgba(0,0,0,.5);
+}
+#phone.shade-open #shade { transform: translateY(0); }
+.qs-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--on-surface-variant); margin-bottom: 14px; }
+.qs-header .qtime { font-weight: 600; color: #fff; }
+.qs-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 14px; }
+.qs-tile {
+  height: 70px; border-radius: 22px; background: var(--surface-2); display: flex; flex-direction: column;
+  align-items: flex-start; justify-content: center; gap: 4px; padding: 0 14px; cursor: pointer;
+  transition: background .2s, color .2s; color: var(--on-surface-variant);
+}
+.qs-tile.on { background: var(--primary); color: var(--on-primary); }
+.qs-tile .qi { font-size: 20px; }
+.qs-tile .qn { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+.qs-slider { background: var(--surface-2); border-radius: 26px; padding: 14px 16px; margin-bottom: 12px; }
+.qs-slider .sl-label { font-size: 12px; color: var(--on-surface-variant); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; }
+.track { height: 10px; border-radius: 6px; background: var(--surface-bright); position: relative; }
+.track .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 6px; background: var(--primary); }
+.track .knob { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); transform: translate(-50%,-50%); box-shadow: 0 1px 4px rgba(0,0,0,.4); }
+.notif-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 9px; }
+.notif-list::-webkit-scrollbar { width: 0; }
+.notif {
+  background: var(--surface-1); border-radius: 24px; padding: 13px 15px; display: flex; gap: 12px; align-items: flex-start;
+  transition: transform .25s, opacity .25s;
+}
+.notif.dismiss { transform: translateX(120%); opacity: 0; }
+.notif .ni { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; flex: none; margin-top: 2px; }
+.notif .nb { flex: 1; min-width: 0; }
+.notif .nt { font-size: 13px; font-weight: 600; }
+.notif .nm { font-size: 13px; color: var(--on-surface-variant); margin-top: 1px; }
+.notif .nx { color: var(--on-surface-variant); font-size: 18px; cursor: pointer; padding: 0 2px; }
+.shade-foot { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; }
+.shade-foot .clearall { font-size: 13px; color: var(--primary); cursor: pointer; font-weight: 600; }
+.shade-foot .cog { font-size: 20px; color: var(--on-surface-variant); cursor: pointer; }
+.shade-grip { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 60px; height: 4px; border-radius: 4px; background: rgba(255,255,255,.3); }
+
+/* shade pull tab (top edge) */
+#shade-tab { position: absolute; top: 0; left: 0; right: 0; height: var(--sb-h); z-index: 79; cursor: pointer; }
+
+/* ───────────── RECENT APPS ───────────── */
+#recents {
+  position: absolute; inset: 0; z-index: 65; display: none; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px; padding: 0 24px;
+}
+#phone.recents-open #recents { display: flex; }
+.recents-track { display: flex; gap: 16px; overflow-x: auto; width: 100%; padding: 20px 10px; scroll-snap-type: x mandatory; }
+.recents-track::-webkit-scrollbar { height: 0; }
+.recent-card {
+  flex: none; width: 78%; height: 62vh; max-height: 560px; border-radius: 28px;
+  background: var(--surface-2); scroll-snap-align: center; overflow: hidden;
+  display: flex; flex-direction: column; box-shadow: 0 18px 40px rgba(0,0,0,.5);
+}
+.recent-card .rc-head { display: flex; align-items: center; gap: 8px; padding: 12px 14px; font-size: 13px; font-weight: 600; }
+.recent-card .rc-body { flex: 1; display: grid; place-items: center; font-size: 60px; opacity: .85; }
+.recents-clear { padding: 10px 22px; border-radius: 22px; background: var(--surface-2); color: var(--on-surface); font-size: 13px; cursor: pointer; }
+
+/* ───────────── APP WINDOW (running app) ───────────── */
+#app-window {
+  position: absolute; inset: 0; z-index: 40; display: none; flex-direction: column;
+  background: var(--surface); transform: scale(.92); opacity: 0;
+  transition: transform .26s cubic-bezier(.2,.8,.2,1), opacity .2s;
+}
+#app-window.open { display: flex; transform: scale(1); opacity: 1; }
+.app-top {
+  height: 60px; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+  padding-top: var(--sb-h); box-sizing: content-box; background: var(--surface-1);
+}
+.app-top .back { font-size: 22px; cursor: pointer; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+.app-top .back:active { background: var(--surface-3); }
+.app-top .title { font-size: 19px; font-weight: 600; flex: 1; }
+.app-body { flex: 1; overflow-y: auto; }
+.app-body::-webkit-scrollbar { width: 0; }
+.app-navbar { height: var(--nav-h); display: grid; place-items: center; background: var(--surface-1); }
+
+/* generic app helpers */
+.list-row { display: flex; align-items: center; gap: 16px; padding: 15px 20px; cursor: pointer; }
+.list-row:active { background: var(--surface-2); }
+.list-row .lr-ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 18px; background: var(--surface-2); color: var(--primary); flex: none; }
+.list-row .lr-main { flex: 1; min-width: 0; }
+.list-row .lr-t { font-size: 15px; font-weight: 500; }
+.list-row .lr-s { font-size: 13px; color: var(--on-surface-variant); margin-top: 2px; }
+.list-row .lr-end { color: var(--on-surface-variant); font-size: 13px; }
+.section-head { padding: 16px 20px 6px; font-size: 13px; font-weight: 700; color: var(--primary); }
+.toggle { width: 50px; height: 30px; border-radius: 16px; background: var(--surface-bright); position: relative; transition: background .2s; flex: none; cursor: pointer; }
+.toggle.on { background: var(--primary); }
+.toggle::after { content:""; position: absolute; top: 4px; left: 4px; width: 22px; height: 22px; border-radius: 50%; background: var(--on-surface-variant); transition: transform .2s, background .2s; }
+.toggle.on::after { transform: translateX(20px); background: var(--on-primary); }
+
+/* Calculator */
+.calc-disp { padding: 28px 24px 18px; text-align: right; }
+.calc-disp .expr { font-size: 18px; color: var(--on-surface-variant); min-height: 22px; }
+.calc-disp .res { font-size: 52px; font-weight: 400; margin-top: 6px; word-break: break-all; }
+.calc-pad { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; padding: 16px; }
+.calc-btn { aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: var(--surface-2); cursor: pointer; transition: transform .1s, filter .15s; }
+.calc-btn:active { transform: scale(.92); filter: brightness(1.3); }
+.calc-btn.op { background: var(--primary-container); color: var(--primary); }
+.calc-btn.acc { background: var(--primary); color: var(--on-primary); }
+.calc-btn.fn { background: var(--surface-3); color: var(--secondary); }
+
+/* Settings about card */
+.about-hero { text-align: center; padding: 28px 20px; }
+.about-hero .logo { font-size: 64px; }
+.about-hero .nm { font-size: 26px; font-weight: 600; margin-top: 8px; }
+.about-hero .ver { color: var(--on-surface-variant); font-size: 14px; margin-top: 4px; }
+.chip { display: inline-block; padding: 5px 14px; border-radius: 16px; background: var(--surface-2); font-size: 12px; margin: 4px; }
+
+/* generic */
+.empty { display: grid; place-items: center; height: 100%; color: var(--on-surface-variant); font-size: 14px; text-align: center; padding: 30px; gap: 10px; }
+.fab { position: absolute; right: 20px; bottom: calc(var(--nav-h) + 18px); width: 60px; height: 60px; border-radius: 20px; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-size: 26px; cursor: pointer; box-shadow: 0 8px 22px rgba(0,0,0,.4); z-index: 5; transition: transform .12s; }
+.fab:active { transform: scale(.9); }
+
+/* messages bubbles */
+.msg-thread { padding: 14px 14px 80px; display: flex; flex-direction: column; gap: 8px; }
+.bubble { max-width: 76%; padding: 10px 14px; border-radius: 20px; font-size: 14.5px; line-height: 1.35; }
+.bubble.them { align-self: flex-start; background: var(--surface-2); border-bottom-left-radius: 6px; }
+.bubble.me { align-self: flex-end; background: var(--primary); color: var(--on-primary); border-bottom-right-radius: 6px; }
+.msg-input { position: absolute; left: 12px; right: 12px; bottom: calc(var(--nav-h) + 10px); display: flex; gap: 8px; align-items: center; background: var(--surface-2); border-radius: 26px; padding: 6px 6px 6px 18px; }
+.msg-input input { flex: 1; background: none; border: none; outline: none; color: var(--on-surface); font-size: 15px; }
+.msg-input .send { width: 42px; height: 42px; border-radius: 50%; background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-size: 18px; cursor: pointer; flex: none; }
+
+/* dialer */
+.dial-disp { text-align: center; font-size: 34px; font-weight: 400; padding: 26px 10px 14px; min-height: 50px; letter-spacing: 1px; }
+.dial-pad { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; padding: 10px 36px; }
+.dial-key { aspect-ratio: 1; border-radius: 50%; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform .1s, filter .15s; }
+.dial-key:active { transform: scale(.9); filter: brightness(1.4); }
+.dial-key .dk-n { font-size: 28px; }
+.dial-key .dk-l { font-size: 9px; letter-spacing: 2px; color: var(--on-surface-variant); }
+.dial-call { display: grid; place-items: center; padding: 14px; }
+.call-btn { width: 66px; height: 66px; border-radius: 50%; background: #51d97a; color: #003912; display: grid; place-items: center; font-size: 28px; cursor: pointer; }
+
+/* clock */
+.clock-big { text-align: center; padding: 40px 0 10px; }
+.clock-big .t { font-size: 72px; font-weight: 300; letter-spacing: -2px; }
+.clock-big .d { color: var(--on-surface-variant); font-size: 16px; }
+
+/* browser */
+.brz-bar { display: flex; gap: 8px; padding: 8px 12px; background: var(--surface-1); align-items: center; }
+.brz-bar input { flex: 1; background: var(--surface-3); border: none; outline: none; color: var(--on-surface); border-radius: 22px; padding: 10px 16px; font-size: 14px; }
+.brz-bar button { background: var(--primary); color: var(--on-primary); border: none; border-radius: 20px; padding: 9px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.brz-frame { width: 100%; height: 100%; border: 0; background: #fff; }
+
+/* camera */
+.cam-view { position: relative; width: 100%; height: 100%; background: radial-gradient(circle at 50% 40%, #20302d, #060a09); display: grid; place-items: center; }
+.cam-shutter { position: absolute; bottom: calc(var(--nav-h) + 24px); left: 50%; transform: translateX(-50%); width: 72px; height: 72px; border-radius: 50%; background: #fff; border: 5px solid rgba(255,255,255,.4); cursor: pointer; }
+.cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+
+/* files / store generic grid cards */
+.grid-cards { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px; padding: 16px; }
+.card { background: var(--surface-2); border-radius: 22px; padding: 18px; }
+.card .ct { font-size: 15px; font-weight: 600; margin-top: 8px; }
+.card .cs { font-size: 12px; color: var(--on-surface-variant); margin-top: 2px; }
+
+/* toast */
+#toast { position: absolute; bottom: calc(var(--nav-h) + 30px); left: 50%; transform: translateX(-50%) translateY(20px); background: var(--surface-bright); color: var(--on-surface); padding: 12px 20px; border-radius: 22px; font-size: 13px; z-index: 95; opacity: 0; transition: opacity .25s, transform .25s; pointer-events: none; white-space: nowrap; box-shadow: 0 6px 20px rgba(0,0,0,.5); }
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* power menu */
+#power-menu { position: absolute; inset: 0; z-index: 90; background: rgba(0,0,0,.6); backdrop-filter: blur(8px); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+#power-menu.show { display: flex; }
+.pm-btn { width: 200px; padding: 16px; border-radius: 24px; background: var(--surface-2); display: flex; gap: 14px; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
+.pm-btn:active { background: var(--surface-3); }
+.pm-btn.danger { background: #5a1b16; color: var(--error); }
+
+/* boot screen */
+#boot { position: absolute; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; transition: opacity .6s; }
+#boot.gone { opacity: 0; pointer-events: none; }
+.boot-logo { font-size: 60px; font-weight: 700; letter-spacing: 4px; background: linear-gradient(120deg, var(--primary), #7b5aff, #ff8cc8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.boot-sub { font-size: 13px; color: #5a6b67; letter-spacing: 6px; }
+.boot-dots { display: flex; gap: 8px; }
+.boot-dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--primary); animation: bd 1.2s infinite ease-in-out; }
+.boot-dots i:nth-child(2){ animation-delay:.2s } .boot-dots i:nth-child(3){ animation-delay:.4s }
+@keyframes bd { 0%,80%,100%{ transform: scale(.5); opacity:.4 } 40%{ transform: scale(1); opacity:1 } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="phone">
+    <div id="wallpaper"></div>
+    <div class="notch"></div>
+
+    <!-- STATUS BAR -->
+    <div id="statusbar">
+      <div class="left">
+        <span class="ic" id="sb-time">9:41</span>
+        <span class="ic" id="sb-notif-dots"></span>
+      </div>
+      <div class="right">
+        <span class="ic" title="Network">📶</span>
+        <span class="ic" id="sb-wifi" title="Wi-Fi">📡</span>
+        <span class="batt"><span class="pct" id="sb-batt">87</span><span class="ic">🔋</span></span>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <div id="home" class="screen">
+      <div class="home-page">
+        <div class="glance">
+          <div class="g-time" id="home-clock">9:41</div>
+          <div class="g-sub" id="home-date">Fri, May 29 · ☀️ 24°</div>
+        </div>
+        <div class="app-grid" id="home-grid"></div>
+      </div>
+      <div class="search-pill" onclick="ROS.openApp('search')">
+        <span class="gdot" style="background:#4285f4"></span>
+        <span class="gdot" style="background:#ea4335;margin-left:-4px"></span>
+        <span class="ph">Search ROS</span>
+        <span style="margin-left:auto">🎤</span>
+      </div>
+      <div class="dock" id="dock"></div>
+      <div class="home-nav"><div class="nav-handle" onclick="ROS.toggleDrawer(true)"></div></div>
+    </div>
+
+    <!-- APP DRAWER -->
+    <div id="drawer" class="screen">
+      <div class="drawer-search">
+        <span>🔍</span><input id="drawer-q" placeholder="Search apps" oninput="ROS.filterDrawer(this.value)">
+      </div>
+      <div class="drawer-grid" id="drawer-grid"></div>
+    </div>
+
+    <!-- LOCK SCREEN -->
+    <div id="lock" class="screen">
+      <div class="lock-clock" id="lock-clock">9:41</div>
+      <div class="lock-date" id="lock-date">Friday, May 29</div>
+      <div class="lock-weather">☀️ 24° · Sunny · Tel Aviv</div>
+      <div class="lock-notifs" id="lock-notifs"></div>
+      <div class="lock-bottom">
+        <div class="lock-fab" onclick="ROS.unlock();setTimeout(()=>ROS.openApp('phone'),300)">📞</div>
+        <div class="lock-fab" onclick="ROS.unlock();setTimeout(()=>ROS.openApp('camera'),300)">📷</div>
+      </div>
+      <div class="lock-hint">Swipe up to unlock</div>
+      <div class="lock-handle" onclick="ROS.unlock()"></div>
+    </div>
+
+    <!-- APP WINDOW -->
+    <div id="app-window">
+      <div class="app-top">
+        <div class="back" onclick="ROS.closeApp()">←</div>
+        <div class="title" id="app-title">App</div>
+        <div id="app-action" style="font-size:20px;cursor:pointer"></div>
+      </div>
+      <div class="app-body" id="app-body"></div>
+      <div class="app-navbar"><div class="nav-handle" onclick="ROS.closeApp()"></div></div>
+    </div>
+
+    <!-- NOTIFICATION SHADE -->
+    <div id="shade-tab" onclick="ROS.toggleShade(true)"></div>
+    <div id="shade">
+      <div class="qs-header">
+        <span class="qtime" id="qs-time">9:41 · Fri, May 29</span>
+        <span>⚙️ ✏️ ⏻</span>
+      </div>
+      <div class="qs-grid" id="qs-grid"></div>
+      <div class="qs-slider">
+        <div class="sl-label">☀️ Brightness</div>
+        <div class="track" id="bright-track" onclick="ROS.setBright(event)">
+          <div class="fill" style="width:70%"></div><div class="knob" style="left:70%"></div>
+        </div>
+      </div>
+      <div class="notif-list" id="notif-list"></div>
+      <div class="shade-foot">
+        <span class="clearall" onclick="ROS.clearNotifs()">Clear all</span>
+        <span class="cog" onclick="ROS.toggleShade(false);ROS.openApp('settings')">⚙️</span>
+      </div>
+      <div class="shade-grip" onclick="ROS.toggleShade(false)"></div>
+    </div>
+
+    <!-- RECENTS -->
+    <div id="recents">
+      <div class="recents-track" id="recents-track"></div>
+      <div class="recents-clear" onclick="ROS.clearRecents()">Clear all</div>
+    </div>
+
+    <!-- POWER MENU -->
+    <div id="power-menu">
+      <div class="pm-btn" onclick="ROS.toast('Screenshot saved');ROS.powerMenu(false)">📸 Screenshot</div>
+      <div class="pm-btn" onclick="ROS.toast('Restarting…');ROS.powerMenu(false);ROS.reboot()">🔄 Restart</div>
+      <div class="pm-btn danger" onclick="ROS.powerOff()">⏻ Power off</div>
+      <div class="pm-btn" onclick="ROS.powerMenu(false)">✕ Cancel</div>
+    </div>
+
+    <!-- BOOT -->
+    <div id="boot">
+      <div class="boot-logo">ROS</div>
+      <div class="boot-sub">ANDROID 16</div>
+      <div class="boot-dots"><i></i><i></i><i></i></div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ═══════════════════════════════════════════════════════════
+   ROS runtime
+   ═══════════════════════════════════════════════════════════ */
+const ROS = (() => {
+
+  // ---- App registry -------------------------------------------------
+  const APPS = [
+    { id:'phone',    name:'Phone',     icon:'📞', color:'#51d97a' },
+    { id:'messages', name:'Messages',  icon:'💬', color:'#3b82f6', badge:2 },
+    { id:'contacts', name:'Contacts',  icon:'👤', color:'#a78bfa' },
+    { id:'camera',   name:'Camera',    icon:'📷', color:'#374151' },
+    { id:'photos',   name:'Photos',    icon:'🖼️', color:'#ec4899' },
+    { id:'browser',  name:'Chrome',    icon:'🌐', color:'#e8eaed', dark:true },
+    { id:'gmail',    name:'Gmail',     icon:'✉️', color:'#ea4335', badge:5 },
+    { id:'maps',     name:'Maps',      icon:'🗺️', color:'#34a853' },
+    { id:'youtube',  name:'YouTube',   icon:'▶️', color:'#ff0000' },
+    { id:'play',     name:'Play Store',icon:'▶️', color:'#00c4b3' },
+    { id:'calendar', name:'Calendar',  icon:'📅', color:'#4285f4' },
+    { id:'clock',    name:'Clock',     icon:'⏰', color:'#1f2937' },
+    { id:'calc',     name:'Calculator',icon:'🧮', color:'#6366f1' },
+    { id:'files',    name:'Files',     icon:'📁', color:'#5f6368' },
+    { id:'music',    name:'Music',     icon:'🎵', color:'#fbbc04' },
+    { id:'weather',  name:'Weather',   icon:'⛅', color:'#0ea5e9' },
+    { id:'notes',    name:'Notes',     icon:'📝', color:'#f59e0b' },
+    { id:'gemini',   name:'Gemini',    icon:'✨', color:'#8b5cf6' },
+    { id:'settings', name:'Settings',  icon:'⚙️', color:'#5f6368' },
+    { id:'store',    name:'Store',     icon:'🛍️', color:'#10b981' },
+  ];
+  const DOCK = ['phone','messages','camera','browser','settings'];
+
+  // ---- State --------------------------------------------------------
+  const state = {
+    locked: true,
+    booted: false,
+    recents: [],            // recently opened app ids
+    notifs: [
+      {id:'n1', icon:'💬', bg:'#3b82f6', t:'Messages · Maya', m:'See you at 8? 🎉'},
+      {id:'n2', icon:'✉️', bg:'#ea4335', t:'Gmail', m:'Your order has shipped'},
+      {id:'n3', icon:'📅', bg:'#4285f4', t:'Calendar', m:'Standup in 15 minutes'},
+      {id:'n4', icon:'🎵', bg:'#fbbc04', t:'Music · Now playing', m:'Daft Punk — Around the World'},
+    ],
+    qs: [
+      {id:'wifi', n:'Wi-Fi', i:'📶', on:true},
+      {id:'bt', n:'Bluetooth', i:'🔵', on:false},
+      {id:'dnd', n:'Do Not Disturb', i:'🌙', on:false},
+      {id:'flash', n:'Flashlight', i:'🔦', on:false},
+      {id:'rotate', n:'Auto-rotate', i:'🔄', on:true},
+      {id:'air', n:'Airplane', i:'✈️', on:false},
+      {id:'data', n:'Mobile data', i:'📡', on:true},
+      {id:'cast', n:'Cast', i:'📺', on:false},
+    ],
+    themes: {
+      teal:   { primary:'#6ad6c4', on:'#003730', name:'Cosmic Teal' },
+      violet: { primary:'#ccbcff', on:'#2b1a52', name:'Nebula Violet' },
+      coral:  { primary:'#ffb59e', on:'#5c1900', name:'Sunset Coral' },
+      lime:   { primary:'#bdd64f', on:'#2b3400', name:'Acid Lime' },
+      blue:   { primary:'#a8c8ff', on:'#002f66', name:'Ocean Blue' },
+      rose:   { primary:'#ffb0c8', on:'#5e1133', name:'Bloom Rose' },
+    },
+    theme: 'teal',
+    battery: 87,
+    charging: false,
+  };
+
+  // ---- DOM refs -----------------------------------------------------
+  const $ = sel => document.querySelector(sel);
+  const phone = $('#phone');
+
+  // ---- Boot ---------------------------------------------------------
+  function boot(){
+    renderHome(); renderDrawer(); renderDock(); renderQS(); renderNotifs(); renderLockNotifs(); applyTheme(state.theme);
+    tick(); setInterval(tick, 1000);
+    setTimeout(()=>{ $('#boot').classList.add('gone'); state.booted = true; }, 2200);
+  }
+
+  function tick(){
+    const d = new Date();
+    let h = d.getHours(), m = String(d.getMinutes()).padStart(2,'0');
+    const ampm = h>=12?'PM':'AM'; let h12 = h%12; if(h12===0)h12=12;
+    const time = `${h12}:${m}`;
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const mon=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateLong = `${days[d.getDay()]}, ${mon[d.getMonth()]} ${d.getDate()}`;
+    const dateShort = `${days[d.getDay()].slice(0,3)}, ${mon[d.getMonth()]} ${d.getDate()}`;
+    $('#sb-time').textContent = time;
+    $('#lock-clock').textContent = time;
+    $('#home-clock').textContent = time;
+    $('#lock-date').textContent = dateLong;
+    $('#home-date').textContent = `${dateShort} · ☀️ 24°`;
+    $('#qs-time').textContent = `${time} · ${dateShort}`;
+    if($('#clock-live')) $('#clock-live').textContent = `${time}:${String(d.getSeconds()).padStart(2,'0')}`;
+  }
+
+  // ---- Rendering: home / drawer / dock ------------------------------
+  function appHTML(a, withLabel=true){
+    const badge = a.badge ? `<span class="badge">${a.badge}</span>` : '';
+    return `<div class="app" onclick="ROS.openApp('${a.id}')">
+      <div class="icon" style="background:${a.color};${a.dark?'color:#1a1a1a':''}">${a.icon}${badge}</div>
+      ${withLabel?`<div class="label">${a.name}</div>`:''}
+    </div>`;
+  }
+  function renderHome(){
+    // first 8 apps on home page
+    $('#home-grid').innerHTML = APPS.slice(0,8).map(a=>appHTML(a)).join('');
+  }
+  function renderDrawer(filter=''){
+    const f = filter.trim().toLowerCase();
+    const list = APPS.filter(a=>a.name.toLowerCase().includes(f)).sort((a,b)=>a.name.localeCompare(b.name));
+    $('#drawer-grid').innerHTML = list.map(a=>appHTML(a)).join('') || `<div class="empty" style="grid-column:1/-1">No apps found</div>`;
+  }
+  function renderDock(){
+    $('#dock').innerHTML = DOCK.map(id=>appHTML(APPS.find(a=>a.id===id), false)).join('');
+  }
+  function filterDrawer(v){ renderDrawer(v); }
+
+  // ---- Quick settings & notifications -------------------------------
+  function renderQS(){
+    $('#qs-grid').innerHTML = state.qs.map(q=>
+      `<div class="qs-tile ${q.on?'on':''}" onclick="ROS.toggleQS('${q.id}')">
+        <span class="qi">${q.i}</span><span class="qn">${q.n}</span>
+      </div>`).join('');
+  }
+  function toggleQS(id){
+    const q = state.qs.find(x=>x.id===id); q.on = !q.on; renderQS();
+    if(id==='dnd' && q.on) toast('Do Not Disturb on');
+    if(id==='flash') toast(q.on?'Flashlight on':'Flashlight off');
+    if(id==='air' && q.on){ const w=state.qs.find(x=>x.id==='wifi'); w.on=false; const d=state.qs.find(x=>x.id==='data'); d.on=false; renderQS(); toast('Airplane mode on'); }
+    if(id==='wifi') $('#sb-wifi').style.opacity = q.on?'1':'.35';
+  }
+  function renderNotifs(){
+    const el = $('#notif-list');
+    if(!state.notifs.length){ el.innerHTML = `<div class="empty">🔕<div>No notifications</div></div>`; updateDots(); return; }
+    el.innerHTML = state.notifs.map(n=>
+      `<div class="notif" id="nf-${n.id}">
+        <div class="ni" style="background:${n.bg}">${n.icon}</div>
+        <div class="nb"><div class="nt">${n.t}</div><div class="nm">${n.m}</div></div>
+        <div class="nx" onclick="ROS.dismissNotif('${n.id}')">✕</div>
+      </div>`).join('');
+    updateDots();
+  }
+  function renderLockNotifs(){
+    const el = $('#lock-notifs');
+    el.innerHTML = state.notifs.slice(0,3).map(n=>
+      `<div class="lock-notif">
+        <div class="ni" style="background:${n.bg}">${n.icon}</div>
+        <div class="nb"><div class="nt">${n.t}</div><div class="nm">${n.m}</div></div>
+      </div>`).join('');
+  }
+  function dismissNotif(id){
+    const node = $('#nf-'+id); if(node){ node.classList.add('dismiss'); }
+    setTimeout(()=>{ state.notifs = state.notifs.filter(n=>n.id!==id); renderNotifs(); renderLockNotifs(); }, 250);
+  }
+  function clearNotifs(){ state.notifs = []; renderNotifs(); renderLockNotifs(); }
+  function updateDots(){
+    $('#sb-notif-dots').textContent = state.notifs.slice(0,3).map(n=>n.icon).join(' ');
+  }
+
+  function setBright(e){
+    const t = $('#bright-track'); const r = t.getBoundingClientRect();
+    let p = Math.max(6, Math.min(100, (e.clientX - r.left)/r.width*100));
+    t.querySelector('.fill').style.width = p+'%';
+    t.querySelector('.knob').style.left = p+'%';
+    $('#wallpaper').style.filter = `brightness(${0.4 + p/100*0.8})`;
+  }
+
+  // ---- Theme (Material You) -----------------------------------------
+  function applyTheme(key){
+    const t = state.themes[key]; if(!t) return;
+    state.theme = key;
+    document.documentElement.style.setProperty('--primary', t.primary);
+    document.documentElement.style.setProperty('--on-primary', t.on);
+    document.documentElement.style.setProperty('--primary-container', t.on+'55');
+  }
+
+  // ---- Navigation: lock / shade / drawer / recents ------------------
+  function unlock(){ $('#lock').classList.add('up'); state.locked = false; }
+  function lock(){ $('#lock').classList.remove('up'); state.locked = true; closeApp(); toggleShade(false); toggleDrawer(false); }
+  function toggleShade(open){
+    if(open===undefined) open = !phone.classList.contains('shade-open');
+    phone.classList.toggle('shade-open', open);
+  }
+  function toggleDrawer(open){
+    if(open===undefined) open = !$('#drawer').classList.contains('open');
+    $('#drawer').classList.toggle('open', open);
+    if(open){ $('#drawer-q').value=''; renderDrawer(); }
+  }
+  function toggleRecents(open){
+    if(open===undefined) open = !phone.classList.contains('recents-open');
+    if(open) renderRecents();
+    phone.classList.toggle('recents-open', open);
+  }
+  function renderRecents(){
+    const track = $('#recents-track');
+    if(!state.recents.length){ track.innerHTML = `<div class="empty" style="width:100%">No recent apps</div>`; return; }
+    track.innerHTML = state.recents.map(id=>{
+      const a = APPS.find(x=>x.id===id); if(!a) return '';
+      return `<div class="recent-card" onclick="ROS.toggleRecents(false);ROS.openApp('${id}')">
+        <div class="rc-head"><span style="width:22px;height:22px;border-radius:6px;background:${a.color};display:inline-grid;place-items:center;font-size:12px">${a.icon}</span> ${a.name}</div>
+        <div class="rc-body" style="background:${a.color}22">${a.icon}</div>
+      </div>`;
+    }).join('');
+  }
+  function clearRecents(){ state.recents = []; renderRecents(); toggleRecents(false); }
+
+  function powerMenu(show){ $('#power-menu').classList.toggle('show', show); }
+  function powerOff(){ powerMenu(false); $('#boot').classList.remove('gone'); $('#boot').innerHTML='<div class="boot-logo">ROS</div><div class="boot-sub">GOODBYE</div>'; }
+  function reboot(){ location.reload(); }
+
+  // ---- App lifecycle ------------------------------------------------
+  function openApp(id){
+    const a = APPS.find(x=>x.id===id); if(!a) return;
+    toggleShade(false); toggleDrawer(false); toggleRecents(false);
+    // track recents (most recent first, unique)
+    state.recents = [id, ...state.recents.filter(x=>x!==id)].slice(0,8);
+    // clear badge
+    if(a.badge){ a.badge = 0; renderHome(); renderDrawer(); }
+    $('#app-title').textContent = a.name;
+    $('#app-action').textContent = '';
+    $('#app-action').onclick = null;
+    $('#app-body').innerHTML = (RENDERERS[id] || RENDERERS._default)(a);
+    const w = $('#app-window'); w.classList.add('open');
+    const body = $('#app-body'); body.scrollTop = 0;
+    if(AFTER[id]) AFTER[id]();
+  }
+  function closeApp(){ $('#app-window').classList.remove('open'); }
+
+  // ---- Toast --------------------------------------------------------
+  let toastT;
+  function toast(msg){
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove('show'), 1800);
+  }
+
+  /* ═══════════════ APP RENDERERS ═══════════════ */
+  const RENDERERS = {
+    _default: a => `<div class="empty">${a.icon}<div><b>${a.name}</b><br>This app is part of the ROS demo.<br>Coming soon ✨</div></div>`,
+
+    settings: () => `
+      <div class="about-hero">
+        <div class="logo">⚙️</div><div class="nm">ROS</div>
+        <div class="ver">Android 16 · Build ROS.16.0</div>
+      </div>
+      <div class="section-head">Connectivity</div>
+      ${row('📶','Wi-Fi','HomeNet_5G', toggleEl('wifi'))}
+      ${row('🔵','Bluetooth','2 devices', toggleEl('bt'))}
+      ${row('📡','Mobile network','5G · Unlimited')}
+      <div class="section-head">Personalize</div>
+      ${row('🎨','Wallpaper & style','Material You', '', "ROS.openThemes()")}
+      ${row('🔔','Notifications', state_notifCount()+' apps')}
+      ${row('🔊','Sound & vibration','Ring · 70%')}
+      ${row('🌙','Display','Dark · Adaptive')}
+      <div class="section-head">System</div>
+      ${row('🔋','Battery', state.battery+'% · '+(state.charging?'Charging':'Not charging'))}
+      ${row('💾','Storage','118 GB of 256 GB used')}
+      ${row('🛡️','Security & privacy','Up to date')}
+      ${row('ℹ️','About phone','ROS · Android 16', '', "ROS.openApp('about')")}
+      <div style="height:30px"></div>`,
+
+    about: () => `
+      <div class="about-hero">
+        <div class="logo">🤖</div><div class="nm">ROS</div>
+        <div class="ver">Robotic Operating System</div>
+        <div style="margin-top:14px">
+          <span class="chip">Android 16</span>
+          <span class="chip">Material 3 Expressive</span>
+          <span class="chip">API level 36</span>
+        </div>
+      </div>
+      ${row('🏷️','Model','ROS Pixel Edition')}
+      ${row('🔢','Build number','ROS.16.0.20260529')}
+      ${row('🐧','Kernel','6.18.5-ros-android')}
+      ${row('☕','Runtime','ART 16')}
+      ${row('🔒','Security patch','May 5, 2026')}
+      ${row('📅','First boot','${new Date().toLocaleDateString()}')}
+      <div class="empty" style="height:auto;padding:30px 24px 40px;font-size:12px">A web-based Android 16 experience.<br>Built as a single HTML file.</div>`,
+
+    calc: () => `
+      <div class="calc-disp"><div class="expr" id="calc-expr"></div><div class="res" id="calc-res">0</div></div>
+      <div class="calc-pad">
+        ${'AC,±,%,÷,7,8,9,×,4,5,6,−,1,2,3,+,0,.,⌫,='.split(',').map(k=>{
+          let cls='calc-btn';
+          if('÷×−+'.includes(k)) cls+=' op';
+          else if(k==='=') cls+=' acc';
+          else if('AC±%⌫'.includes(k)) cls+=' fn';
+          const span = k==='0'?'style="grid-column:span 1"':'';
+          return `<div class="${cls}" ${span} onclick="ROS.calc('${k}')">${k}</div>`;
+        }).join('')}
+      </div>`,
+
+    phone: () => `
+      <div class="dial-disp" id="dial-disp"></div>
+      <div class="dial-pad">
+        ${[['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['✱',''],['0','+'],['#','']].map(([n,l])=>
+          `<div class="dial-key" onclick="ROS.dial('${n}')"><span class="dk-n">${n}</span><span class="dk-l">${l}</span></div>`).join('')}
+      </div>
+      <div class="dial-call"><div class="call-btn" onclick="ROS.makeCall()">📞</div></div>`,
+
+    messages: () => {
+      const threads = [
+        ['Maya','See you at 8? 🎉','#a78bfa'],
+        ['Mom',"Don't forget the keys",'#ec4899'],
+        ['Dev Team','PR #42 is ready for review','#3b82f6'],
+        ['Bank','Your code is 884213','#10b981'],
+      ];
+      return threads.map((t,i)=>
+        `<div class="list-row" onclick="ROS.openThread(${i})">
+          <div class="lr-ic" style="background:${t[2]};color:#fff">${t[0][0]}</div>
+          <div class="lr-main"><div class="lr-t">${t[0]}</div><div class="lr-s">${t[1]}</div></div>
+          <div class="lr-end">${['now','1h','3h','9h'][i]}</div>
+        </div>`).join('') + `<div class="fab" onclick="ROS.toast('New message')">✏️</div>`;
+    },
+
+    contacts: () => {
+      const c = [['Maya Levi','📞 050-1234567','#a78bfa'],['Mom ❤️','📞 052-7654321','#ec4899'],['David Cohen','📞 054-1112223','#3b82f6'],['Office','📞 03-9998887','#10b981'],['Pizza Place','📞 1-700-700','#f59e0b']];
+      return c.map(x=>`<div class="list-row" onclick="ROS.toast('Calling ${x[0]}…');ROS.openApp('phone')">
+        <div class="lr-ic" style="background:${x[2]};color:#fff">${x[0][0]}</div>
+        <div class="lr-main"><div class="lr-t">${x[0]}</div><div class="lr-s">${x[1]}</div></div>
+      </div>`).join('') + `<div class="fab" onclick="ROS.toast('Add contact')">＋</div>`;
+    },
+
+    clock: () => `
+      <div class="clock-big"><div class="t" id="clock-live">9:41:00</div><div class="d" id="clock-tz">Local time · GMT+3</div></div>
+      <div class="section-head">World clock</div>
+      ${row('🌍','Tel Aviv', tzTime(3))}
+      ${row('🗽','New York', tzTime(-4))}
+      ${row('🗼','Tokyo', tzTime(9))}
+      ${row('🎡','London', tzTime(1))}
+      <div class="section-head">Tools</div>
+      ${row('⏱️','Stopwatch','Tap to start','',"ROS.toast('Stopwatch')")}
+      ${row('⏲️','Timer','Set a timer','',"ROS.toast('Timer')")}
+      ${row('⏰','Alarm','7:00 AM · Weekdays', toggleEl('alarm1'))}`,
+
+    weather: () => `
+      <div style="text-align:center;padding:36px 0 10px">
+        <div style="font-size:80px">☀️</div>
+        <div style="font-size:64px;font-weight:300">24°</div>
+        <div style="font-size:16px;color:var(--on-surface-variant)">Sunny · Tel Aviv</div>
+        <div style="font-size:13px;color:var(--on-surface-variant);margin-top:4px">H:27° L:18° · Feels like 25°</div>
+      </div>
+      <div style="display:flex;gap:10px;overflow-x:auto;padding:16px">
+        ${[['Now','☀️','24°'],['13','☀️','25°'],['14','🌤️','26°'],['15','⛅','25°'],['16','⛅','24°'],['17','🌥️','22°'],['18','🌙','20°']].map(h=>
+          `<div style="flex:none;text-align:center;background:var(--surface-2);border-radius:18px;padding:12px 16px"><div style="font-size:12px;color:var(--on-surface-variant)">${h[0]}</div><div style="font-size:24px;margin:6px 0">${h[1]}</div><div style="font-weight:600">${h[2]}</div></div>`).join('')}
+      </div>
+      <div class="section-head">This week</div>
+      ${[['Mon','⛅','26°','17°'],['Tue','☀️','28°','19°'],['Wed','🌧️','22°','16°'],['Thu','⛅','24°','17°'],['Fri','☀️','27°','18°']].map(d=>
+        `<div class="list-row"><div class="lr-main"><div class="lr-t">${d[0]}</div></div><div style="font-size:20px;margin-right:14px">${d[1]}</div><div class="lr-end" style="font-size:15px;color:var(--on-surface)">${d[2]} <span style="color:var(--on-surface-variant)">${d[3]}</span></div></div>`).join('')}`,
+
+    browser: () => `
+      <div class="brz-bar">
+        <input id="brz-url" value="https://www.google.com/webhp?igu=1" onkeydown="if(event.key==='Enter')ROS.brzGo()">
+        <button onclick="ROS.brzGo()">Go</button>
+      </div>
+      <div style="flex:1;height:100%"><iframe class="brz-frame" id="brz-frame" src="https://www.google.com/webhp?igu=1"></iframe></div>`,
+
+    notes: () => {
+      const notes = JSON.parse(localStorage.getItem('ros_notes')||'[]');
+      const body = notes.length ? notes.map((n,i)=>
+        `<div class="card" style="margin:8px 16px;cursor:default"><div class="ct">${escapeHtml(n.t||'Untitled')}</div><div class="cs" style="white-space:pre-wrap;margin-top:6px;color:var(--on-surface)">${escapeHtml(n.b)}</div><div style="text-align:right;margin-top:8px"><span style="color:var(--error);font-size:12px;cursor:pointer" onclick="ROS.delNote(${i})">Delete</span></div></div>`).join('')
+        : `<div class="empty">📝<div>No notes yet.<br>Tap ＋ to write one.</div></div>`;
+      return body + `<div class="fab" onclick="ROS.newNote()">＋</div>`;
+    },
+
+    camera: () => `
+      <div class="cam-view">
+        <div style="text-align:center;color:var(--on-surface-variant)">
+          <div style="font-size:50px">📷</div><div style="margin-top:8px;font-size:13px">Camera preview</div>
+        </div>
+        <div style="position:absolute;top:16px;width:100%;display:flex;justify-content:space-around;font-size:13px;color:#fff;opacity:.85">
+          <span>⚡ Auto</span><span>HDR</span><span>1x</span><span>⚙️</span>
+        </div>
+        <div class="cam-shutter" onclick="ROS.snap()"></div>
+        <div class="cam-flash" id="cam-flash"></div>
+      </div>`,
+
+    photos: () => `<div class="grid-cards">${
+      ['🏖️','🌅','🐱','🍕','🏔️','🌸','🚗','🎸','🌊','🏙️'].map((e,i)=>
+        `<div class="card" style="aspect-ratio:1;display:grid;place-items:center;font-size:46px;background:hsl(${i*36},45%,30%)" onclick="ROS.toast('Photo ${i+1}')">${e}</div>`).join('')
+    }</div>`,
+
+    music: () => `
+      <div style="text-align:center;padding:30px 20px 10px">
+        <div style="width:200px;height:200px;border-radius:26px;margin:0 auto;background:linear-gradient(135deg,#fbbc04,#ea4335);display:grid;place-items:center;font-size:70px;box-shadow:0 14px 40px rgba(0,0,0,.5)">🎵</div>
+        <div style="font-size:22px;font-weight:600;margin-top:20px">Around the World</div>
+        <div style="color:var(--on-surface-variant)">Daft Punk · Homework</div>
+      </div>
+      <div style="padding:0 24px;margin-top:14px">
+        <div class="track"><div class="fill" style="width:38%"></div><div class="knob" style="left:38%"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--on-surface-variant);margin-top:6px"><span>2:34</span><span>7:09</span></div>
+      </div>
+      <div style="display:flex;justify-content:center;align-items:center;gap:28px;font-size:30px;margin-top:18px">
+        <span style="cursor:pointer">🔀</span><span style="cursor:pointer">⏮️</span>
+        <span id="mp-play" style="cursor:pointer;width:70px;height:70px;border-radius:50%;background:var(--primary);color:var(--on-primary);display:grid;place-items:center;font-size:30px" onclick="ROS.mpToggle()">⏸️</span>
+        <span style="cursor:pointer">⏭️</span><span style="cursor:pointer">🔁</span>
+      </div>`,
+
+    gemini: () => `
+      <div style="padding:30px 24px;text-align:center">
+        <div style="font-size:56px">✨</div>
+        <div style="font-size:24px;font-weight:600;margin-top:8px">Hi, I'm Gemini</div>
+        <div style="color:var(--on-surface-variant);margin-top:6px;font-size:14px">Your AI assistant on ROS</div>
+      </div>
+      <div id="gem-chat" style="padding:0 16px;display:flex;flex-direction:column;gap:8px"></div>
+      <div class="msg-input" style="bottom:calc(var(--nav-h) + 10px)">
+        <input id="gem-in" placeholder="Ask Gemini…" onkeydown="if(event.key==='Enter')ROS.gemSend()">
+        <div class="send" onclick="ROS.gemSend()">↑</div>
+      </div>`,
+
+    files: () => `
+      <div class="grid-cards">
+        ${[['📥','Downloads','42 items'],['🖼️','Images','318 items'],['🎵','Audio','96 items'],['🎬','Video','12 items'],['📄','Documents','57 items'],['📦','Archives','8 items']].map(f=>
+          `<div class="card" onclick="ROS.toast('${f[1]}')"><div style="font-size:34px">${f[0]}</div><div class="ct">${f[1]}</div><div class="cs">${f[2]}</div></div>`).join('')}
+      </div>
+      <div class="section-head">Storage</div>
+      <div style="padding:0 16px 20px">
+        <div class="track" style="height:14px"><div class="fill" style="width:46%"></div></div>
+        <div style="font-size:12px;color:var(--on-surface-variant);margin-top:8px">118 GB used of 256 GB</div>
+      </div>`,
+
+    store: () => `<div class="grid-cards">${
+      [['🎮','Game Hub','4.6★'],['📸','PixelCam','4.8★'],['🎧','BeatStream','4.4★'],['💪','FitTrack','4.7★'],['📚','ReadNow','4.5★'],['🍔','FoodGo','4.3★']].map(x=>
+        `<div class="card" onclick="ROS.toast('Installing ${x[1]}…')"><div style="font-size:40px">${x[0]}</div><div class="ct">${x[1]}</div><div class="cs">${x[2]} · Free</div><div style="margin-top:10px;text-align:center;background:var(--primary);color:var(--on-primary);border-radius:18px;padding:7px;font-size:13px;font-weight:600">Install</div></div>`).join('')
+    }</div>`,
+
+    search: () => `
+      <div style="padding:20px 18px"><div style="background:var(--surface-2);border-radius:26px;padding:0 18px;height:52px;display:flex;align-items:center;gap:12px">🔍<input autofocus placeholder="Search apps, web & more" style="flex:1;background:none;border:none;outline:none;color:var(--on-surface);font-size:15px" oninput="ROS.searchApps(this.value)"></div></div>
+      <div id="search-res" style="padding:0 8px"></div>`,
+  };
+
+  // ---- Per-app post-render hooks -----------------------------------
+  const AFTER = {
+    clock: ()=>{ const tz=$('#clock-tz'); },
+    gemini: ()=>{ gemPush('me','How do I change my wallpaper?'); gemPush('bot','Open Settings → Wallpaper & style, then pick a Material You color. On ROS you can tap the theme swatches to recolor the whole system instantly! 🎨'); },
+    about: ()=>{ const fb=$('#app-body'); }, // placeholder
+  };
+
+  // ---- App-specific logic -------------------------------------------
+  // Calculator
+  let calcState = { cur:'0', expr:'', reset:false };
+  function calc(k){
+    const res=$('#calc-res'), exp=$('#calc-expr');
+    const ops={'÷':'/','×':'*','−':'-','+':'+'};
+    if(k==='AC'){ calcState={cur:'0',expr:'',reset:false}; }
+    else if(k==='⌫'){ calcState.cur = calcState.cur.length>1?calcState.cur.slice(0,-1):'0'; }
+    else if(k==='±'){ calcState.cur = calcState.cur.startsWith('-')?calcState.cur.slice(1):'-'+calcState.cur; }
+    else if(k==='%'){ calcState.cur = String(parseFloat(calcState.cur)/100); }
+    else if(ops[k]){ calcState.expr = humanize(calcState.expr) + calcState.cur + ' '+k+' '; calcState.reset=true; calcState.expr = calcState.expr; calcState._raw=(calcState._raw||'')+calcState.cur+ops[k]; }
+    else if(k==='='){
+      try{
+        const full=(calcState._raw||'')+calcState.cur;
+        const v = Function('"use strict";return ('+full.replace(/[^-()\d/*+.]/g,'')+')')();
+        calcState.expr = full.replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−') + ' =';
+        calcState.cur = String(Math.round(v*1e10)/1e10); calcState._raw=''; calcState.reset=true;
+      }catch(e){ calcState.cur='Error'; }
+    }
+    else { // digit or dot
+      if(k==='.'&&calcState.cur.includes('.')) {}
+      else if(calcState.cur==='0'&&k!=='.' || calcState.reset){ calcState.cur = k; calcState.reset=false; }
+      else calcState.cur += k;
+    }
+    res.textContent = calcState.cur; exp.textContent = calcState.expr;
+  }
+  function humanize(e){ return e; }
+
+  // Dialer
+  let dialNum='';
+  function dial(n){ dialNum += n; const d=$('#dial-disp'); if(d) d.textContent = dialNum; }
+  function makeCall(){ if(!dialNum){ toast('Enter a number'); return; } toast('Calling '+dialNum+'…'); dialNum=''; $('#dial-disp').textContent=''; }
+
+  // Messages thread
+  const THREADS = [
+    [['them','Hey! Are we still on for tonight?'],['me','Yes! 100%'],['them','See you at 8? 🎉']],
+    [['them',"Don't forget the keys"],['me','Got them 👍']],
+    [['them','PR #42 is ready for review'],['me','Looking now'],['them','Thanks!']],
+    [['them','Your verification code is 884213']],
+  ];
+  let curThread=0;
+  function openThread(i){
+    curThread=i;
+    const names=['Maya','Mom','Dev Team','Bank'];
+    $('#app-title').textContent = names[i];
+    const msgs = THREADS[i].map(m=>`<div class="bubble ${m[0]}">${m[1]}</div>`).join('');
+    $('#app-body').innerHTML = `<div class="msg-thread" id="msg-thread">${msgs}</div>
+      <div class="msg-input"><input id="msg-in" placeholder="Text message" onkeydown="if(event.key==='Enter')ROS.sendMsg()"><div class="send" onclick="ROS.sendMsg()">↑</div></div>`;
+    setTimeout(()=>{ const t=$('#msg-thread'); if(t)t.scrollTop=t.scrollHeight; },50);
+  }
+  function sendMsg(){
+    const inp=$('#msg-in'); const v=inp.value.trim(); if(!v) return;
+    const t=$('#msg-thread'); t.insertAdjacentHTML('beforeend', `<div class="bubble me">${escapeHtml(v)}</div>`);
+    inp.value=''; t.scrollTop=t.scrollHeight;
+    setTimeout(()=>{ const replies=['👍','Sounds good!','Haha 😄','On it.','See you soon!']; t.insertAdjacentHTML('beforeend', `<div class="bubble them">${replies[Math.floor(Math.random()*replies.length)]}</div>`); t.scrollTop=t.scrollHeight; }, 900);
+  }
+
+  // Notes
+  function newNote(){
+    const t = prompt('Note title:'); if(t===null) return;
+    const b = prompt('Note text:')||'';
+    const notes = JSON.parse(localStorage.getItem('ros_notes')||'[]');
+    notes.unshift({t,b}); localStorage.setItem('ros_notes', JSON.stringify(notes));
+    openApp('notes'); toast('Note saved');
+  }
+  function delNote(i){
+    const notes = JSON.parse(localStorage.getItem('ros_notes')||'[]');
+    notes.splice(i,1); localStorage.setItem('ros_notes', JSON.stringify(notes));
+    openApp('notes'); toast('Note deleted');
+  }
+
+  // Camera
+  function snap(){
+    const f=$('#cam-flash'); if(!f) return;
+    f.style.transition='none'; f.style.opacity='.9';
+    requestAnimationFrame(()=>{ f.style.transition='opacity .5s'; f.style.opacity='0'; });
+    toast('📸 Photo saved to Photos');
+  }
+
+  // Music
+  function mpToggle(){ const b=$('#mp-play'); b.textContent = b.textContent==='⏸️'?'▶️':'⏸️'; }
+
+  // Browser
+  function brzGo(){
+    let u=$('#brz-url').value.trim();
+    if(!/^https?:\/\//.test(u)) u = 'https://www.google.com/search?igu=1&q='+encodeURIComponent(u);
+    $('#brz-frame').src = u;
+  }
+
+  // Gemini
+  function gemPush(who, text){
+    const c=$('#gem-chat'); if(!c) return;
+    c.insertAdjacentHTML('beforeend', `<div class="bubble ${who==='me'?'me':'them'}">${escapeHtml(text)}</div>`);
+    $('#app-body').scrollTop = $('#app-body').scrollHeight;
+  }
+  function gemSend(){
+    const inp=$('#gem-in'); const v=inp.value.trim(); if(!v) return; inp.value='';
+    gemPush('me', v);
+    setTimeout(()=>{
+      const lc=v.toLowerCase(); let r;
+      if(lc.includes('theme')||lc.includes('color')||lc.includes('wallpaper')) r="Tap any color swatch in Settings → Wallpaper & style to recolor ROS with Material You. 🎨";
+      else if(lc.includes('battery')) r=`You're at ${state.battery}%. Enable Battery Saver from Quick Settings to stretch it further. 🔋`;
+      else if(lc.includes('android')||lc.includes('version')) r="This is ROS running Android 16 (API 36) with Material 3 Expressive. 🤖";
+      else if(lc.includes('hello')||lc.includes('hi')||lc.includes('שלום')) r="Hey there! 👋 How can I help you with ROS today?";
+      else r="On ROS I can open apps, change themes, and answer questions. Try asking about the battery, version, or themes! ✨";
+      gemPush('bot', r);
+    }, 700);
+  }
+
+  // Search inside search app
+  function searchApps(q){
+    const res=$('#search-res'); const f=q.trim().toLowerCase();
+    if(!f){ res.innerHTML=''; return; }
+    const list=APPS.filter(a=>a.name.toLowerCase().includes(f));
+    res.innerHTML = list.map(a=>
+      `<div class="list-row" onclick="ROS.openApp('${a.id}')"><div class="lr-ic" style="background:${a.color};color:#fff">${a.icon}</div><div class="lr-main"><div class="lr-t">${a.name}</div><div class="lr-s">App</div></div></div>`).join('')
+      + `<div class="list-row" onclick="ROS.openApp('browser')"><div class="lr-ic">🌐</div><div class="lr-main"><div class="lr-t">Search the web for "${escapeHtml(q)}"</div><div class="lr-s">Chrome</div></div></div>`;
+  }
+
+  // Theme picker (opened from settings)
+  function openThemes(){
+    $('#app-title').textContent='Wallpaper & style';
+    const swatches = Object.entries(state.themes).map(([k,t])=>
+      `<div onclick="ROS.applyTheme('${k}');ROS.toast('${t.name}')" style="cursor:pointer;text-align:center">
+        <div style="width:64px;height:64px;border-radius:50%;margin:0 auto;background:${t.primary};border:3px solid ${state.theme===k?'#fff':'transparent'};box-shadow:0 4px 12px rgba(0,0,0,.4)"></div>
+        <div style="font-size:11px;margin-top:6px;color:var(--on-surface-variant)">${t.name}</div>
+      </div>`).join('');
+    $('#app-body').innerHTML = `
+      <div style="padding:24px 18px"><div style="font-size:16px;font-weight:600;margin-bottom:8px">Material You colors</div>
+      <div style="font-size:13px;color:var(--on-surface-variant);margin-bottom:20px">Pick a color to theme your whole system.</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:22px">${swatches}</div></div>
+      <div class="section-head">Wallpaper presets</div>
+      <div class="grid-cards">
+        ${['linear-gradient(160deg,#0a1614,#161022)','linear-gradient(160deg,#1a1030,#301025)','linear-gradient(160deg,#2a1505,#0a1614)','linear-gradient(160deg,#102a20,#0a1614)'].map(g=>
+          `<div class="card" style="aspect-ratio:.9;background:${g};cursor:pointer" onclick="document.getElementById('wallpaper').style.background='${g}';ROS.toast('Wallpaper set')"></div>`).join('')}
+      </div>`;
+  }
+
+  // ---- helpers used in template strings -----------------------------
+  function row(ic,t,s='',endHtml='',onclick=''){
+    return `<div class="list-row" ${onclick?`onclick="${onclick}"`:''}>
+      <div class="lr-ic">${ic}</div>
+      <div class="lr-main"><div class="lr-t">${t}</div>${s?`<div class="lr-s">${s}</div>`:''}</div>
+      ${endHtml||''}
+    </div>`;
+  }
+  function toggleEl(id){
+    const on = (state.toggles=state.toggles||{})[id] ?? (id==='wifi'||id==='alarm1');
+    state.toggles[id]=on;
+    return `<div class="toggle ${on?'on':''}" onclick="event.stopPropagation();ROS.flip('${id}',this)"></div>`;
+  }
+  function flip(id,el){ state.toggles[id]=!state.toggles[id]; el.classList.toggle('on'); }
+  function state_notifCount(){ return state.notifs.length; }
+  function tzTime(off){ const d=new Date(); const u=d.getTime()+d.getTimezoneOffset()*60000; const n=new Date(u+off*3600000); let h=n.getHours(),m=String(n.getMinutes()).padStart(2,'0'); const ap=h>=12?'PM':'AM'; let h12=h%12||12; return `${h12}:${m} ${ap}`; }
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  // ---- Gestures: swipe to unlock / open shade / drawer --------------
+  let touchY0=null, touchX0=null;
+  document.addEventListener('touchstart', e=>{ touchY0=e.touches[0].clientY; touchX0=e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    if(touchY0===null) return;
+    const dy = e.changedTouches[0].clientY - touchY0;
+    const y0 = touchY0; touchY0=null;
+    if(!state.booted) return;
+    if(state.locked){ if(dy < -60) unlock(); return; }
+    // from top edge → shade
+    if(y0 < 70 && dy > 50){ toggleShade(true); return; }
+    if(phone.classList.contains('shade-open') && dy < -50){ toggleShade(false); return; }
+    // bottom area swipe up → drawer (only on home, no app open)
+    const appOpen = $('#app-window').classList.contains('open');
+    if(y0 > window.innerHeight-160 && dy < -60 && !appOpen && !phone.classList.contains('recents-open')){ toggleDrawer(true); return; }
+    if($('#drawer').classList.contains('open') && dy > 60){ toggleDrawer(false); return; }
+  }, {passive:true});
+
+  // keyboard helpers for desktop testing
+  document.addEventListener('keydown', e=>{
+    if(e.key==='Escape'){ if($('#app-window').classList.contains('open')) closeApp(); else if(phone.classList.contains('shade-open')) toggleShade(false); else if($('#drawer').classList.contains('open')) toggleDrawer(false); else if(state.locked===false) ; else unlock(); }
+  });
+
+  return {
+    boot, openApp, closeApp, unlock, lock, toggleShade, toggleDrawer, toggleRecents,
+    toggleQS, dismissNotif, clearNotifs, setBright, applyTheme, openThemes,
+    calc, dial, makeCall, openThread, sendMsg, newNote, delNote, snap, mpToggle,
+    brzGo, gemSend, searchApps, flip, toast, clearRecents, powerMenu, powerOff, reboot,
+    filterDrawer,
+  };
+})();
+
+window.addEventListener('load', ROS.boot);
+</script>
+</body>
+</html>
